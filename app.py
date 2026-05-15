@@ -18,6 +18,7 @@ st.markdown("""
     .card { background-color: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 5px solid #d4af37; }
     h1, h2, h3 { color: #003366; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     .total-box { background-color: #003366; color: #d4af37; padding: 20px; border-radius: 10px; text-align: center; font-size: 24px; font-weight: bold; }
+    .logo-container { display: flex; justify-content: center; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -28,18 +29,14 @@ def get_connection():
 def init_db():
     conn = get_connection()
     c = conn.cursor()
-    # Usuarios/Permisos
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, cedula TEXT, bloque TEXT)''')
-    # Profesionales
     c.execute('''CREATE TABLE IF NOT EXISTS profesionales 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, cedula TEXT)''')
-    # Caja Diaria
     c.execute('''CREATE TABLE IF NOT EXISTS consultas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, forma_pago TEXT, medico TEXT, 
                   paciente TEXT, cedula TEXT, telefono TEXT, v_consulta REAL, v_proc REAL, 
                   v_inyec REAL, v_cert REAL, total REAL, observaciones TEXT)''')
-    # Agendamientos
     c.execute('''CREATE TABLE IF NOT EXISTS agendamientos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, medico TEXT, hora TEXT, 
                   paciente TEXT, telefono TEXT)''')
@@ -48,7 +45,7 @@ def init_db():
 
 init_db()
 
-# --- 4. GESTIÓN DE ESTADO (ADN ANTERIOR) ---
+# --- 4. GESTIÓN DE ESTADO ---
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.user_role = None
@@ -56,6 +53,14 @@ if 'autenticado' not in st.session_state:
 
 # --- 5. LOGIN ---
 def login():
+    # Logo en página de presentación
+    col_l1, col_l2, col_l3 = st.columns([1, 1, 1])
+    with col_l2:
+        try:
+            st.image("logo leones.jpg", use_container_width=True)
+        except:
+            st.warning("Archivo 'logo leones.jpg' no encontrado.")
+
     st.markdown("<h1 style='text-align: center;'>🦁 CLUB DE LEONES CUMBAYA-ILALO</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #d4af37; font-size: 1.2em;'>Centro Médico de Especialidades</p>", unsafe_allow_html=True)
     
@@ -67,14 +72,12 @@ def login():
         p_input = st.text_input("Clave (Número de Cédula)", type="password")
         
         if st.button("INGRESAR"):
-            # Validación Maestro (Solicitado por el usuario)
             if u_input == "CMLeones" and p_input == "2468":
                 st.session_state.autenticado = True
                 st.session_state.user_role = "ADMINISTRACION"
                 st.session_state.user_name = "Administrador Maestro"
                 st.rerun()
             else:
-                # Validación por Base de Datos de Permisos
                 conn = get_connection()
                 res = conn.execute("SELECT nombre, bloque FROM usuarios WHERE nombre=? AND cedula=?", (u_input, p_input)).fetchone()
                 conn.close()
@@ -201,7 +204,6 @@ def bloque_recepcion():
             st.subheader(f"Horarios Disponibles: {p_ag}")
             horas = [f"{h:02d}:{m:02d}" for h in range(8, 18) for m in (0, 30)]
             for h in horas:
-                # ADN: Verificar si ya existe el agendamiento para no duplicar
                 conn = get_connection()
                 existente = conn.execute("SELECT paciente, telefono FROM agendamientos WHERE fecha=? AND medico=? AND hora=?", (str(f_ag), p_ag, h)).fetchone()
                 conn.close()
@@ -247,7 +249,12 @@ def bloque_recepcion():
 if not st.session_state.autenticado:
     login()
 else:
-    # Sidebar común
+    # Logo en barra lateral
+    try:
+        st.sidebar.image("logo leones.jpg", use_container_width=True)
+    except:
+        pass
+    
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}")
     st.sidebar.write(f"**Sección:** {st.session_state.user_role}")
     if st.sidebar.button("SALIR"):
@@ -260,4 +267,4 @@ else:
         bloque_recepcion()
     elif st.session_state.user_role == "CONTABILIDAD":
         st.title("💰 CONTABILIDAD")
-        st.info("Bloque en construcción - Siguiente etapa.")
+        st.info("Bloque en construcción.")
