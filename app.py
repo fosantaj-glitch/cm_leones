@@ -7,18 +7,45 @@ import time
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="🦁", layout="wide")
 
-# --- 2. ESTILOS SOBRIOS (AZUL Y ORO) ---
+# --- 2. ESTILOS SOBRIOS Y OPTIMIZACIÓN VISUAL ---
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
     [data-testid="stSidebar"] { background-color: #003366; }
     [data-testid="stSidebar"] * { color: white; }
-    .stButton>button { width: 100%; border-radius: 8px; height: 3em; background-color: #003366; color: white; border: 1px solid #d4af37; font-weight: bold; }
+    
+    /* Botón Principal Azul y Oro */
+    .stButton>button { 
+        width: 100%; border-radius: 8px; height: 3em; 
+        background-color: #003366; color: white; 
+        border: 1px solid #d4af37; font-weight: bold; 
+    }
     .stButton>button:hover { background-color: #d4af37; color: #003366; }
-    .card { background-color: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 5px solid #d4af37; }
-    h1, h2, h3 { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; }
-    .total-box { background-color: #f8f9fa; color: #003366; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6; font-size: 22px; font-weight: bold; display: flex; align-items: center; }
-    .stTable { border: none !important; }
+    
+    /* Tarjeta de Login */
+    .card { 
+        background-color: white; padding: 20px; 
+        border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        border-top: 5px solid #d4af37; 
+    }
+    
+    /* Títulos Sobrios */
+    h1, h2, h3 { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; margin-bottom: 0px; }
+    
+    /* Logo optimizado (Efecto nitidez) */
+    .logo-img {
+        image-rendering: -webkit-optimize-contrast;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width: 180px; /* Tamaño reducido para evitar pixelado */
+    }
+    
+    .total-box { 
+        background-color: #f1f3f5; color: #003366; 
+        padding: 10px; border-radius: 8px; 
+        border: 1px solid #d4af37; font-size: 20px; font-weight: bold; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -45,38 +72,49 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# --- 5. LOGIN (ADN SOBRIO) ---
+# --- 5. LOGIN MODERNO Y COMPACTO ---
 def login():
-    c1, c2, c3 = st.columns([1, 0.8, 1])
-    with c2:
-        try: st.image("logo leones.jpg", use_container_width=True)
-        except: pass
-    st.markdown("<h1 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #d4af37; font-size: 1.1em; letter-spacing: 2px;'>CENTRO MÉDICO</p>", unsafe_allow_html=True)
+    # Logo reducido y centrado
+    c_l1, c_l2, c_l3 = st.columns([1.2, 0.6, 1.2])
+    with c_l2:
+        try:
+            st.markdown('<img src="https://i.ibb.co/vz0XzXn/logo-leones.jpg" class="logo-img">', unsafe_allow_html=True) 
+            # Si el archivo local existe, descomenta la línea de abajo y comenta la de arriba:
+            st.image("logo leones.jpg", width=180) 
+        except:
+            pass
+
+    st.markdown("<h2 style='text-align: center; margin-top: 10px;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #d4af37; font-weight: bold; margin-bottom: 20px;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 1.2, 1])
+    col1, col2, col3 = st.columns([1.1, 1, 1.1])
     with col2:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("ACCESO AL SISTEMA")
-        u_input = st.text_input("Nombre de Usuario", placeholder="Ej: CMLeones")
-        p_input = st.text_input("Clave de Acceso", type="password", placeholder="Número de cédula")
+        # SELECTOR DE BLOQUE (Tu solicitud)
+        bloque_destino = st.selectbox("BLOQUE DE ACCESO", ["RECEPCION", "MEDICOS", "CONTABILIDAD", "ADMINISTRACION"])
+        u_nombre = st.text_input("USUARIO (Nombre)")
+        p_clave = st.text_input("CLAVE (Cédula)", type="password")
         
-        if st.button("INGRESAR AL SISTEMA"):
-            if u_input == "CMLeones" and p_input == "2468":
+        if st.button("ACCEDER AL SISTEMA"):
+            # Validación Clave Maestra
+            if u_nombre == "CMLeones" and p_clave == "2468":
                 st.session_state.autenticado = True
-                st.session_state.user_role = "ADMINISTRACION"
+                st.session_state.user_role = bloque_destino # Permite ir a donde elija el Admin
                 st.session_state.user_name = "Administrador Maestro"
                 st.rerun()
             else:
+                # Validación de usuarios registrados
                 conn = get_connection()
-                res = conn.execute("SELECT nombre, bloque FROM usuarios WHERE nombre=? AND cedula=?", (u_input, p_input)).fetchone()
+                res = conn.execute("SELECT nombre, bloque FROM usuarios WHERE nombre=? AND cedula=? AND bloque=?", 
+                                   (u_nombre, p_clave, bloque_destino)).fetchone()
                 conn.close()
                 if res:
                     st.session_state.autenticado = True
                     st.session_state.user_name = res[0]
                     st.session_state.user_role = res[1]
                     st.rerun()
-                else: st.error("Acceso denegado. Verifique sus credenciales.")
+                else:
+                    st.error("⚠️ Acceso no autorizado para este bloque.")
         st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 6. BLOQUES DE LA APP ---
@@ -90,23 +128,22 @@ def bloque_administracion():
             c1, c2, c3 = st.columns(3)
             n = c1.text_input("Nombre completo")
             c = c2.text_input("Cédula (será la clave)")
-            b = c3.selectbox("Asignar bloque", ["RECEPCION", "CONTABILIDAD"])
-            if st.form_submit_button("Guardar Usuario"):
+            b = c3.selectbox("Asignar bloque", ["RECEPCION", "CONTABILIDAD", "MEDICOS"])
+            if st.form_submit_button("Autorizar Acceso"):
                 if n and c:
                     db = get_connection(); db.execute("INSERT INTO usuarios (nombre, cedula, bloque) VALUES (?,?,?)", (n, c, b)); db.commit(); db.close()
-                    st.success(f"✅ Usuario {n} autorizado para {b}"); st.rerun()
+                    st.success(f"✅ {n} autorizado para {b}"); st.rerun()
         
         df_u = pd.read_sql("SELECT id, nombre, cedula as Clave, bloque FROM usuarios", get_connection())
         st.dataframe(df_u, use_container_width=True, hide_index=True)
 
     elif menu == "GESTIÓN PROFESIONALES":
-        st.header("👨‍⚕️ Gestión de Profesionales")
-        # Diseño exacto de FOTO 6
+        st.header("👨‍⚕️ Registro de Médicos")
         with st.form("f_prof", clear_on_submit=True):
             col1, col2 = st.columns(2)
-            n_p = col1.text_input("Nombre del Médico / Especialista")
-            c_p = col2.text_input("Cédula del Profesional")
-            if st.form_submit_button("Guardar Nuevo Profesional"):
+            n_p = col1.text_input("Nombre del Médico")
+            c_p = col2.text_input("Cédula")
+            if st.form_submit_button("Guardar Médico"):
                 db = get_connection(); db.execute("INSERT INTO profesionales (nombre, cedula) VALUES (?,?)", (n_p, c_p)); db.commit(); db.close(); st.rerun()
         
         df_p = pd.read_sql("SELECT * FROM profesionales", get_connection())
@@ -124,90 +161,64 @@ def bloque_recepcion():
         st.markdown("### 📝 REGISTRO DE INGRESOS")
         with st.container():
             c1, c2 = st.columns(2)
-            f_fecha = c1.date_input("FECHA")
-            f_pago = c2.selectbox("FORMA DE PAGO", ["Efectivo", "Transferencia", "Pago Plux", "Deuna", "DataFast"])
-            
-            # Diseño de FOTO 1
-            med = c1.selectbox("Médico/Especialista", ["Seleccione Médico..."] + profes)
-            vc = c2.number_input("Valor Consulta", value=0.0, step=1.0)
-            
+            f_f = c1.date_input("FECHA")
+            f_p = c2.selectbox("FORMA DE PAGO", ["Efectivo", "Transferencia", "Pago Plux", "Deuna", "DataFast"])
+            med = c1.selectbox("Médico/Especialista", ["Seleccione..."] + profes)
+            vc = c2.number_input("Valor Consulta", value=0.0)
             pac = c1.text_input("Nombre del Paciente")
-            vp = c2.number_input("Valor Procedimiento", value=0.0, step=1.0)
-            
-            ced = c1.text_input("Cédula (Opcional)")
-            vi = c2.number_input("Valor Inyección", value=0.0, step=1.0)
-            
-            tel = c1.text_input("Teléfono (Opcional)")
-            vce = c2.number_input("Valor Certificado", value=0.0, step=1.0)
-            
+            vp = c2.number_input("Valor Procedimiento", value=0.0)
+            ced = c1.text_input("Cédula")
+            vi = c2.number_input("Valor Inyección", value=0.0)
+            tel = c1.text_input("Teléfono")
+            vce = c2.number_input("Valor Certificado", value=0.0)
             obs = st.text_area("Observaciones")
-            
             total = vc + vp + vi + vce
             st.markdown(f"<div class='total-box'>💰 Total a cobrar: ${total:.2f}</div>", unsafe_allow_html=True)
-            
-            if st.button("GUARDAR REGISTRO", type="primary"):
-                if med != "Seleccione Médico..." and pac:
-                    db = get_connection()
-                    db.execute("INSERT INTO consultas (fecha, forma_pago, medico, paciente, cedula, telefono, v_consulta, v_proc, v_inyec, v_cert, total, observaciones) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (str(f_fecha), f_pago, med, pac, ced, tel, vc, vp, vi, vce, total, obs))
-                    db.commit(); db.close()
-                    st.success("✅ Registro almacenado correctamente"); time.sleep(1); st.rerun()
+            if st.button("GUARDAR REGISTRO"):
+                if med != "Seleccione..." and pac:
+                    db = get_connection(); db.execute("INSERT INTO consultas (fecha, forma_pago, medico, paciente, cedula, telefono, v_consulta, v_proc, v_inyec, v_cert, total, observaciones) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (str(f_f), f_p, med, pac, ced, tel, vc, vp, vi, vce, total, obs)); db.commit(); db.close(); st.success("✅ Guardado correctamente"); time.sleep(1); st.rerun()
 
     elif m == "AGENDAMIENTOS":
         st.markdown("### 🗓️ Agendamiento de Consultas")
-        # Diseño exacto de FOTO 2
         c1, c2 = st.columns(2)
-        ag_f = c1.date_input("Fecha a Agendar")
-        ag_m = c2.selectbox("Profesional Médico", ["Seleccione..."] + profes)
-        
+        ag_f, ag_m = c1.date_input("Fecha"), c2.selectbox("Médico", ["Seleccione..."] + profes)
         if ag_m != "Seleccione...":
-            st.markdown(f"#### Horarios Disponibles - {ag_f}")
             horas = [f"{h:02d}:{m:02d}" for h in range(8, 18) for m in (0, 30)]
             for h in horas:
-                db = get_connection()
-                res = db.execute("SELECT paciente, telefono FROM agendamientos WHERE fecha=? AND medico=? AND hora=?", (str(ag_f), ag_m, h)).fetchone()
-                db.close()
-                
+                db = get_connection(); res = db.execute("SELECT paciente, telefono FROM agendamientos WHERE fecha=? AND medico=? AND hora=?", (str(ag_f), ag_m, h)).fetchone(); db.close()
                 col_h, col_p, col_t, col_b = st.columns([1, 3, 2, 1])
                 col_h.write(f"🕒 {h}")
                 if res:
-                    col_p.write(f"**{res[0]}**")
-                    col_t.write(res[1])
-                    if col_b.button("🗑️", key=f"del_{h}"):
+                    col_p.info(f"{res[0]}"); col_t.write(res[1])
+                    if col_b.button("🗑️", key=f"d_{h}"): 
                         db = get_connection(); db.execute("DELETE FROM agendamientos WHERE fecha=? AND medico=? AND hora=?", (str(ag_f), ag_m, h)); db.commit(); db.close(); st.rerun()
                 else:
-                    p_nom = col_p.text_input("Nombre...", key=f"p_{h}", label_visibility="collapsed")
-                    p_tel = col_t.text_input("Teléfono...", key=f"t_{h}", label_visibility="collapsed")
+                    pn = col_p.text_input("Paciente", key=f"p_{h}", label_visibility="collapsed")
+                    pt = col_t.text_input("Teléfono", key=f"t_{h}", label_visibility="collapsed")
                     if col_b.button("💾", key=f"s_{h}"):
-                        if p_nom:
-                            db = get_connection(); db.execute("INSERT INTO agendamientos (fecha, medico, hora, paciente, telefono) VALUES (?,?,?,?,?)", (str(ag_f), ag_m, h, p_nom, p_tel)); db.commit(); db.close(); st.rerun()
+                        if pn: db = get_connection(); db.execute("INSERT INTO agendamientos (fecha, medico, hora, paciente, telefono) VALUES (?,?,?,?,?)", (str(ag_f), ag_m, h, pn, pt)); db.commit(); db.close(); st.rerun()
 
     elif m == "VISUALIZAR/EDITAR CONSULTAS":
-        st.markdown("### 🔎 CONSULTAS")
-        f_ver = st.date_input("Filtrar por fecha")
-        df = pd.read_sql(f"SELECT * FROM consultas WHERE fecha='{str(f_ver)}'", get_connection())
-        
+        st.markdown("### 🔎 VISUALIZACIÓN DE CONSULTAS")
+        f_v = st.date_input("Fecha")
+        df = pd.read_sql(f"SELECT * FROM consultas WHERE fecha='{str(f_v)}' ORDER BY medico", get_connection())
         if not df.empty:
-            for m in df['medico'].unique():
-                st.markdown(f"#### 🩺 {m}")
-                sub_df = df[df['medico'] == m]
-                # Estructura visual de FOTO 3
-                for _, r in sub_df.iterrows():
-                    with st.expander(f"👤 {r['paciente']} | Pago: {r['forma_pago']} | Total: ${r['total']:.2f}"):
-                        st.write(f"**Cédula:** {r['cedula']} | **Tel:** {r['telefono']}")
-                        st.table(pd.DataFrame({
-                            "Concepto": ["Consulta", "Proc.", "Inyec.", "Certif."],
-                            "Valor": [f"${r['v_consulta']}", f"${r['v_proc']}", f"${r['v_inyec']}", f"${r['v_cert']}"]
-                        }))
-                        if st.button("🗑️ Eliminar Registro", key=f"del_c_{r['id']}"):
+            for med in df['medico'].unique():
+                st.markdown(f"#### 🩺 {med}")
+                sub = df[df['medico'] == med]
+                for _, r in sub.iterrows():
+                    with st.expander(f"👤 {r['paciente']} | Total: ${r['total']:.2f}"):
+                        st.write(f"Pago: {r['forma_pago']} | Cédula: {r['cedula']}")
+                        if st.button("🗑️ Eliminar", key=f"dc_{r['id']}"): 
                             db = get_connection(); db.execute("DELETE FROM consultas WHERE id=?", (r['id'],)); db.commit(); db.close(); st.rerun()
-                st.markdown(f"**Total {m}: ${sub_df['total'].sum():.2f}**")
-        else: st.info("No hay consultas en la fecha seleccionada.")
+                st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
 
-# --- 7. NAVEGACIÓN PRINCIPAL ---
+# --- 7. NAVEGACIÓN ---
 if not st.session_state.autenticado:
     login()
 else:
-    try: st.sidebar.image("logo leones.jpg", use_container_width=True)
+    # Sidebar con logo pequeño
+    try: st.sidebar.image("logo leones.jpg", width=120)
     except: pass
     st.sidebar.markdown(f"👤 **{st.session_state.user_name}**")
     if st.sidebar.button("SALIR"):
