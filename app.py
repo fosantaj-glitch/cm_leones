@@ -102,8 +102,9 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
-if 'index_selector' not in st.session_state:
-    st.session_state.index_selector = 0
+# Fábrica de ciclo de vida del login para forzar renderizado limpio absoluto
+if 'selector_control' not in st.session_state:
+    st.session_state.selector_control = 0
 
 # --- 5. LOGIN VERTICAL ---
 def login():
@@ -121,38 +122,38 @@ def login():
         st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
+        # El identificador dinámico de clave (key) obliga al sistema a iniciar vacío (" ") siempre que se reinicie
         servicios_disponibles = [" ", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox(
             "Elija el servicio al que desea ingresar", 
             servicios_disponibles, 
-            index=st.session_state.index_selector,
-            key="selector_servicio_principal"
+            index=0,
+            key=f"widget_servicio_{st.session_state.selector_control}"
         )
         
-        # RENDERIZADO CONDICIONAL PURO: Evita que se creen hilos visuales fantasmas en el DOM
+        # RENDERIZADO CONDICIONAL ESTRICTO DE INTERFAZ LIMPIA
         if b_destino == " ":
             st.info("Por favor, seleccione un servicio arriba para desplegar los campos de acceso.")
             u_nombre, p_clave = "", ""
         else:
-            # Elementos invisibles trampa para capturar el autollenado del navegador de forma segura
+            # Inputs señuelo ocultos para absorber la inyección automática del navegador
             st.markdown(
                 """
                 <div style="display:none;">
-                    <input type="text" name="username_fake" autocomplete="on">
-                    <input type="password" name="password_fake" autocomplete="on">
+                    <input type="text" name="usr_fake_trap" autocomplete="on">
+                    <input type="password" name="pwd_fake_trap" autocomplete="on">
                 </div>
                 """, unsafe_allow_html=True
             )
             
-            # Campos reales limpios y estables
-            u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key="usr_real_input")
+            u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key=f"usr_real_{st.session_state.selector_control}")
             
-            # Estructura del ojo integrada únicamente cuando b_destino es válido
+            # Las columnas del ojo solo se instancian si b_destino NO es el espacio vacío, eliminando los iconos fantasma
             col_pass, col_ojo = st.columns([6, 1])
-            ver_clave = col_ojo.checkbox("👁️", key="ojo_login", help="Mostrar/Ocultar Clave")
+            ver_clave = col_ojo.checkbox("👁️", key=f"ojo_real_{st.session_state.selector_control}", help="Mostrar/Ocultar Clave")
             tipo_input = "default" if ver_clave else "password"
             
-            p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="new-password", key="pwd_real_input")
+            p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="new-password", key=f"pwd_real_{st.session_state.selector_control}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
@@ -399,24 +400,24 @@ def bloque_medicos():
             
             st.markdown("<div class='seccion-clinica'>1. IDENTIFICACIÓN EXCLUSIVA DEL PACIENTE</div>", unsafe_allow_html=True)
             col_id1, col_id2, col_id3 = st.columns(3)
-            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE")
-            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula)
-            p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE")
+            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE", autocomplete="off")
+            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula, autocomplete="off")
+            p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>2. CONTACTO DE EMERGENCIA DEL PACIENTE</div>", unsafe_allow_html=True)
             col_em1, col_em2 = st.columns(2)
-            p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA")
-            p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA")
+            p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA", autocomplete="off")
+            p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>3. MOTIVO DE CONSULTA Y ANAMNESIS</div>", unsafe_allow_html=True)
-            motivo_act = st.text_input("Motivo de la Consulta Actual")
+            motivo_act = st.text_input("Motivo de la Consulta Actual", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>4. SIGNOS VITALES</div>", unsafe_allow_html=True)
             col_sv1, col_sv2, col_sv3, col_sv4 = st.columns(4)
-            pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80")
-            fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72")
-            fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16")
-            temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5")
+            pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80", autocomplete="off")
+            fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72", autocomplete="off")
+            fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16", autocomplete="off")
+            temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>5. ANTECEDENTES PATOLÓGICOS</div>", unsafe_allow_html=True)
             ant_personales = st.text_area("Antecedentes Personales (Clínicos, Quirúrgicos, Alergias)", placeholder="Ninguno / Diabetes / Hipertensión...")
@@ -482,14 +483,8 @@ else:
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
         
-        # Purgamos de forma absoluta los inputs para que queden vacíos
-        if "usr_real_input" in st.session_state:
-            st.session_state["usr_real_input"] = ""
-        if "pwd_real_input" in st.session_state:
-            st.session_state["pwd_real_input"] = ""
-            
-        # Regresamos el índice al valor 0 (" ") para vaciar por completo el selectbox
-        st.session_state.index_selector = 0
+        # EL QUIRÓFANO DE LIMPIEZA: Forzamos la destrucción absoluta de la identidad del widget antiguo
+        st.session_state.selector_control += 1
         st.rerun()
 
     st.sidebar.divider()
