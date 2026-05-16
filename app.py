@@ -77,13 +77,19 @@ if 'user_role' not in st.session_state:
 if 'user_name' not in st.session_state:
     st.session_state.user_name = None
 
-# Estados específicos para persistencia y borrado del Bloque Médicos
+# Estados específicos para el Bloque Médicos
 if 'med_acceso_concedido' not in st.session_state:
     st.session_state.med_acceso_concedido = False
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
-# --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
+# Inicialización de llaves de los inputs para permitir su borrado total
+if 'input_med_usuario' not in st.session_state:
+    st.session_state.input_med_usuario = "Seleccione Médico..."
+if 'input_med_cedula' not in st.session_state:
+    st.session_state.input_med_cedula = ""
+
+# --- 5. LOGIN VERTICAL ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
@@ -102,7 +108,6 @@ def login():
         
         b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
         u_nombre = st.text_input("USUARIO")
-        # autocomplete="new-password" evita que el navegador ofrezca guardar la clave
         p_clave = st.text_input("CLAVE", type="password", autocomplete="new-password")
         
         st.markdown("<br>", unsafe_allow_html=True)
@@ -273,13 +278,12 @@ def bloque_medicos():
     opciones_medicos = ["Seleccione Médico..."] + ["CMLeones"] + medicos_registrados
     
     c_m1, c_m2 = st.columns(2)
-    doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos)
-    # autocomplete="new-password" previene que el navegador pida recordar o almacenar credenciales
-    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="new-password")
+    # Vinculados estrictamente a session_state mediante 'key' para posibilitar el borrado total
+    doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="input_med_usuario")
+    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="new-password", key="input_med_cedula")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # 1. BOTÓN EXPLICITO "INGRESO"
     if st.button("INGRESO"):
         if doc_usuario != "Seleccione Médico..." and doc_cedula:
             conn = get_connection()
@@ -289,14 +293,15 @@ def bloque_medicos():
             if es_valido or (doc_usuario == "CMLeones" and doc_cedula == "2468"):
                 st.session_state.med_acceso_concedido = True
                 st.session_state.med_nombre_guardado = doc_usuario
-                st.success(f"🔓 Acceso Autorizado")
-                # 2. BORRADO DE DATOS: Limpiamos los inputs de pantalla forzando un refresco limpio
+                
+                # ARQUITECTURA EXPERTA: Borrado absoluto e instantáneo de los campos de credenciales de la pantalla
+                st.session_state.input_med_usuario = "Seleccione Médico..."
+                st.session_state.input_med_cedula = ""
                 st.rerun()
             else:
                 st.session_state.med_acceso_concedido = False
                 st.error("❌ Credenciales inválidas. Verifique su Profesional y Cédula.")
     
-    # Si la validación fue aceptada con el botón INGRESO, se muestran las historias clínicas
     if st.session_state.med_acceso_concedido:
         medico_activo = st.session_state.med_nombre_guardado
         st.info(f"👨‍⚕️ Profesional Activo: {medico_activo}")
