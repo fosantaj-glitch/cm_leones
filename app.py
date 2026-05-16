@@ -102,11 +102,10 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
-# Control dinámico para forzar el vaciado del selector al salir
 if 'index_selector' not in st.session_state:
     st.session_state.index_selector = 0
 
-# --- 5. LOGIN VERTICAL (CORREGIDO CONTRA AUTOLLENADO) ---
+# --- 5. LOGIN VERTICAL ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
@@ -122,7 +121,6 @@ def login():
         st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
-        # El valor del selector obedece estrictamente a st.session_state.index_selector
         servicios_disponibles = [" ", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox(
             "Elija el servicio al que desea ingresar", 
@@ -131,32 +129,32 @@ def login():
             key="selector_servicio_principal"
         )
         
+        # Uso correcto de un contenedor dinámico para asegurar que la pantalla se limpie por completo
+        contenedor_inputs = st.empty()
+        
         if b_destino == " ":
-            st.info("Por favor, seleccione un servicio arriba para desplegar los campos de acceso.")
+            contenedor_inputs.info("Por favor, seleccione un servicio arriba para desplegar los campos de acceso.")
             u_nombre, p_clave = "", ""
         else:
-            # ------------------------------------------------------------------------
-            # TRAMPA INGENIERIL INVISIBLE: 
-            # Creamos inputs falsos que el navegador llenará con "CMLeones" y "2468".
-            # Usamos un div con display:none para que no alteren visualmente tu diseño.
-            # ------------------------------------------------------------------------
-            st.markdown(
-                """
-                <div style="display:none;">
-                    <input type="text" name="username_fake" autocomplete="on">
-                    <input type="password" name="password_fake" autocomplete="on">
-                </div>
-                """, unsafe_allow_html=True
-            )
-            
-            # Tus campos reales se mantienen limpios porque el navegador ya se desgastó con los de arriba
-            u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key="usr_real_input")
-            
-            col_pass, col_ojo = st.columns([6, 1])
-            ver_clave = col_ojo.checkbox("👁️", key="ojo_login", help="Mostrar/Ocultar Clave")
-            tipo_input = "default" if ver_clave else "password"
-            
-            p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="new-password", key="pwd_real_input")
+            with contenedor_inputs.container():
+                # Campos trampa ocultos para desviar el autollenado del navegador de forma segura
+                st.markdown(
+                    """
+                    <div style="display:none;">
+                        <input type="text" name="username_fake" autocomplete="on">
+                        <input type="password" name="password_fake" autocomplete="on">
+                    </div>
+                    """, unsafe_allow_html=True
+                )
+                
+                # Tus campos reales estables
+                u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key="usr_real_input")
+                
+                col_pass, col_ojo = st.columns([6, 1])
+                ver_clave = col_ojo.checkbox("👁️", key="ojo_login", help="Mostrar/Ocultar Clave")
+                tipo_input = "default" if ver_clave else "password"
+                
+                p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="new-password", key="pwd_real_input")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
@@ -468,7 +466,7 @@ def bloque_medicos():
                     st.error("❌ Complete los campos obligatorios antes de guardar (Nombre, Cédula, Diagnóstico y Tratamiento).")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 10. EJECUCIÓN NAVEGACIÓN GENERAL ---
+# --- 11. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
     login()
 else:
@@ -479,7 +477,6 @@ else:
         pass
     st.sidebar.markdown(f"👤 **{st.session_state.user_name}**")
     
-    # --- ENFOQUE DIRECTO AL SALIR DEL SISTEMA ---
     if st.sidebar.button("SALIR DEL SISTEMA"):
         st.session_state.autenticado = False
         st.session_state.user_role = None
@@ -487,13 +484,13 @@ else:
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
         
-        # Limpiamos explícitamente los campos reales del login del diccionario de estados
+        # Purgamos de forma absoluta los inputs para que queden vacíos
         if "usr_real_input" in st.session_state:
             st.session_state["usr_real_input"] = ""
         if "pwd_real_input" in st.session_state:
             st.session_state["pwd_real_input"] = ""
             
-        # Forzamos que el índice apunte al valor 0 (" ") de la lista de servicios disponibles
+        # Regresamos el índice al valor 0 (" ") para vaciar por completo el selectbox
         st.session_state.index_selector = 0
         st.rerun()
 
