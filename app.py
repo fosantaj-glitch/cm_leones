@@ -3,15 +3,17 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 import time
+import base64
+import os
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="🦁", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. ARQUITECTURA VISUAL ULTRA-COMPACTA Y DE ANCHO FIJO (UNA SOLA HOJA) ---
+# --- 2. DISEÑO VISUAL VECTORIZADO Y COMPACTO (UNA SOLA HOJA) ---
 st.markdown(
     """
     <style>
-    /* Forzar fondo blanco absoluto en toda la pantalla */
+    /* Forzar fondo blanco absoluto en toda la aplicación para fusionar el logo */
     .stApp, .block-container, [data-testid="stCanvasZone"], [data-testid="stWidgetFormView"] { 
         background-color: #ffffff !important; 
     }
@@ -19,7 +21,7 @@ st.markdown(
     /* Eliminar márgenes y espacios muertos del tope de la página */
     .block-container { padding-top: 0.5rem; padding-bottom: 0rem; padding-left: 1rem; padding-right: 1rem; }
     
-    /* Ocultar elementos decorativos por defecto de Streamlit que generan espacios fantasma */
+    /* Ocultar la barra superior por defecto de Streamlit */
     [data-testid="stHeader"] { display: none; }
     
     /* Barra Lateral Azul y Oro */
@@ -34,11 +36,11 @@ st.markdown(
     }
     .stButton>button:hover { background-color: #d4af37; color: #003366; }
 
-    /* CONTENEDOR MAESTRO DE ANCHO FIJO: Evita que el logo y los campos crezcan de lado a lado */
+    /* CONTENEDOR DE ANCHO FIJO: Evita que el logo y los campos crezcan de lado a lado */
     .login-wrapper {
         max-width: 360px;
         margin: 0 auto; /* Centrado absoluto horizontal */
-        padding-top: 10px;
+        padding-top: 15px;
         text-align: center;
     }
 
@@ -49,17 +51,26 @@ st.markdown(
         border-radius: 12px; 
         box-shadow: 0 4px 20px rgba(0,0,0,0.06); 
         border-top: 5px solid #d4af37;
-        text-align: left; /* Alineación interna de los campos */
+        text-align: left; 
         margin-top: 10px;
     }
 
     /* Tipografía Fina y Ajustada */
-    .main-title { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; font-size: 1.6em; margin-bottom: 2px; text-align: center; }
+    .main-title { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; font-size: 1.5em; margin-bottom: 2px; text-align: center; }
     .subtitle { color: #d4af37; font-weight: bold; letter-spacing: 2px; font-size: 0.95em; margin-bottom: 12px; text-align: center; }
 
-    /* Ajuste estricto de inputs */
+    /* Ajuste de inputs */
     .stTextInput>div, .stSelectbox>div { margin-bottom: 2px; }
     .total-box { background-color: #f8f9fa; color: #003366; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 1.1em; font-weight: bold; margin-top: 10px; }
+    
+    /* Estilo para la imagen HTML pura para evitar campos fantasmas */
+    .logo-html {
+        width: 100%;
+        max-width: 180px;
+        height: auto;
+        margin: 0 auto 10px auto;
+        display: block;
+    }
     </style>
     """, unsafe_allow_html=True
 )
@@ -91,21 +102,27 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# --- 5. LOGIN VERTICAL CONTROLADO (ANCHO DE 360PX EXACTO) ---
+# Función auxiliar para codificar la imagen local en Base64 y evitar el bug de st.image()
+def obtener_imagen_base64(ruta_imagen):
+    if os.path.exists(ruta_imagen):
+        with open(ruta_imagen, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode()
+    return ""
+
+# --- 5. LOGIN VERTICAL CONTROLADO (HTML PURO SIN ESPACIOS FANTASMAS) ---
 def login():
-    # Todo el bloque se encierra en el contenedor de ancho fijo para que no se desparrame por la pantalla
     st.markdown("<div class='login-wrapper'>", unsafe_allow_html=True)
     
-    try: 
-        # Al estar dentro de un bloque de 360px, la imagen se escala automáticamente de forma perfecta
-        st.image("logo leones.jpg", use_container_width=True)
-    except: 
-        st.write("🦁")
+    # Inserción de la imagen como HTML nativo para destruir el casillero invisible superior
+    img_b64 = obtener_imagen_base64("logo leones.jpg")
+    if img_b64:
+        st.markdown(f'<img src="data:image/jpeg;base64,{img_b64}" class="logo-html">', unsafe_allow_html=True)
+    else:
+        st.markdown("<h2>🦁</h2>", unsafe_allow_html=True)
             
     st.markdown("<div class='main-title'>CLUB DE LEONES CUMBAYA-ILALO</div>", unsafe_allow_html=True)
     st.markdown("<p class='subtitle'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
     
-    # Tarjeta con los campos estilizados y finos
     st.markdown("<div class='card-login'>", unsafe_allow_html=True)
     
     b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
@@ -132,8 +149,8 @@ def login():
             else:
                 st.error("⚠️ Datos incorrectos.")
                 
-    st.markdown("</div>", unsafe_allow_html=True) # Cierre card-login
-    st.markdown("</div>", unsafe_allow_html=True) # Cierre login-wrapper
+    st.markdown("</div>", unsafe_allow_html=True) 
+    st.markdown("</div>", unsafe_allow_html=True) 
 
 # --- 6. BLOQUE ADMINISTRACIÓN ---
 def bloque_administracion():
@@ -256,4 +273,23 @@ def bloque_recepcion():
                             c_b1, c_b2 = st.columns(2)
                             if c_b1.form_submit_button("ACTUALIZAR DATOS"):
                                 db = get_connection(); db.execute("UPDATE consultas SET forma_pago=?, v_consulta=?, v_proc=?, v_inyec=?, v_cert=?, total=?, observaciones=? WHERE id=?", (new_p, new_vc, new_vp, new_vi, new_vce, new_tot, new_obs, r['id'])); db.commit(); db.close(); st.success("Actualizado"); time.sleep(0.5); st.rerun()
-                            if c_b2
+                            if c_b2.form_submit_button("ELIMINAR REGISTRO"):
+                                db = get_connection(); db.execute("DELETE FROM consultas WHERE id=?", (r['id'],)); db.commit(); db.close(); st.warning("Eliminado"); time.sleep(0.5); st.rerun()
+                st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
+        else: st.info("No hay registros en la fecha seleccionada.")
+
+# --- 8. EJECUCIÓN NAVEGACIÓN GENERAL ---
+if not st.session_state.autenticado:
+    login()
+else:
+    st.sidebar.markdown("<br>", unsafe_allow_html=True)
+    try: st.sidebar.image("logo leones.jpg", width=120)
+    except: pass
+    st.sidebar.markdown(f"👤 **{st.session_state.user_name}**")
+    if st.sidebar.button("SALIR DEL SISTEMA"):
+        st.session_state.autenticado = False; st.rerun()
+
+    if st.session_state.user_role == "ADMINISTRACION":
+        bloque_administracion()
+    elif st.session_state.user_role == "RECEPCION":
+        bloque_recepcion()
