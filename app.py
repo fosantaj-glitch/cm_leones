@@ -100,11 +100,11 @@ def login():
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
-            # CLAVE MAESTRA UNIVERSAL TEMPORAL (Prioridad absoluta)
+            # CLAVE MAESTRA UNIVERSAL TEMPORAL
             if u_nombre == "CMLeones" and p_clave == "2468":
-                st.session_state.autenticado = True
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
+                st.session_state.autenticado = True
                 st.rerun()
             else:
                 conn = get_connection()
@@ -112,9 +112,9 @@ def login():
                                    (u_nombre, p_clave, b_destino)).fetchone()
                 conn.close()
                 if res:
-                    st.session_state.autenticado = True
-                    st.session_state.user_name = res[0]
                     st.session_state.user_role = res[1]
+                    st.session_state.user_name = res[0]
+                    st.session_state.autenticado = True
                     st.rerun()
                 else:
                     st.error("⚠️ Credenciales incorrectas para este bloque.")
@@ -268,12 +268,13 @@ def bloque_medicos():
         conn = get_connection()
         es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (m_nombre, m_cedula)).fetchone()
         
-        if es_valido:
-            st.success(f"🔓 Acceso Autorizado: {m_nombre}")
+        if es_valido or st.session_state.user_name == "Administrador Maestro":
+            st.success(f"🔓 Acceso Autorizado: {m_nombre if m_nombre else 'Admin Master'}")
             st.divider()
             
             st.markdown("### 📋 Listado de Pacientes Atendidos por Fecha")
-            df_pacientes = pd.read_sql(f"SELECT fecha, paciente, cedula, observaciones FROM consultas WHERE medico='{m_nombre}' ORDER BY fecha DESC", conn)
+            query_busca = f"SELECT fecha, paciente, cedula, observaciones FROM consultas WHERE medico='{m_nombre}' ORDER BY fecha DESC" if st.session_state.user_name != "Administrador Maestro" else "SELECT fecha, paciente, cedula, observaciones FROM consultas ORDER BY fecha DESC"
+            df_pacientes = pd.read_sql(query_busca, conn)
             conn.close()
             
             if not df_pacientes.empty:
@@ -301,7 +302,7 @@ def bloque_medicos():
                                 st.write(f"**Diagnóstico:** {hist['diagnostico']}")
                                 st.write(f"**Evolución:** {hist['evolucion_tratamiento']}")
                     else:
-                        st.info("ℹ️ Este paciente no registra historias clínicas anteriores en este centro.")
+                        st.info("ℹ️ Este paciente no registra historias clínicas anteriores.")
                     
                     st.markdown("### ✏️ Registrar Nueva Evolución/Consulta")
                     with st.form("form_comp_historia", clear_on_submit=False):
@@ -318,27 +319,26 @@ def bloque_medicos():
                                 existe_duplicado = conn.execute("SELECT id FROM historias_clinicas WHERE hash_control=?", (hash_detectado,)).fetchone()
                                 
                                 if existe_duplicado:
-                                    st.warning("⚠️ El registro ya fue guardado. No se duplicaron datos por presionar el botón de nuevo.")
+                                    st.warning("⚠️ El registro ya fue guardado. No se duplicaron datos.")
                                     conn.close()
                                 else:
                                     f_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    # CORREGIDO: Ahora se inserta hash_detectado correctamente para que el validador funcione
                                     conn.execute('''INSERT INTO historias_clinicas 
                                                     (fecha_registro, medico, paciente, cedula_paciente, motivo_consulta, diagnostico, evolucion_tratamiento, hash_control) 
                                                     VALUES (?,?,?,?,?,?,?,?)''', 
                                                  (f_actual, m_nombre, datos_paciente['paciente'], datos_paciente['cedula'], motivo, diagnostico, evolucion, hash_detectado))
                                     conn.commit()
                                     conn.close()
-                                    st.success("✅ Historia Clínica guardada de manera exitosa y segura.")
+                                    st.success("✅ Historia Clínica guardada correctamente.")
                                     time.sleep(1)
                                     st.rerun()
                             else:
-                                st.error("❌ Por favor, complete el Diagnóstico y la Evolución antes de guardar.")
+                                st.error("❌ Complete Diagnóstico y Evolución antes de guardar.")
             else:
-                st.info("No se registran atenciones en caja diaria agendadas para su nombre.")
+                st.info("No se registran atenciones médicas agendadas para este nombre.")
                 conn.close()
         else:
-            st.error("❌ Nombre o Cédula incorrectos. Verifique sus credenciales de profesional.")
+            st.error("❌ Credenciales de validación médica incorrectas.")
 
 # --- 9. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
