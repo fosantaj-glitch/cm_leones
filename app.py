@@ -77,6 +77,12 @@ if 'user_role' not in st.session_state:
 if 'user_name' not in st.session_state:
     st.session_state.user_name = None
 
+# Estados específicos para persistencia y borrado del Bloque Médicos
+if 'med_acceso_concedido' not in st.session_state:
+    st.session_state.med_acceso_concedido = False
+if 'med_nombre_guardado' not in st.session_state:
+    st.session_state.med_nombre_guardado = ""
+
 # --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
@@ -96,7 +102,8 @@ def login():
         
         b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
         u_nombre = st.text_input("USUARIO")
-        p_clave = st.text_input("CLAVE", type="password")
+        # autocomplete="new-password" evita que el navegador ofrezca guardar la clave
+        p_clave = st.text_input("CLAVE", type="password", autocomplete="new-password")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
@@ -254,105 +261,114 @@ def bloque_recepcion():
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
-# --- 8. BLOQUE MÉDICOS (ACTUALIZADO CON DESPLEGABLE DE PROFESIONALES) ---
+# --- 8. BLOQUE MÉDICOS ---
 def bloque_medicos():
     st.markdown("## 🥼 INTERFAZ DE HISTORIAS CLÍNICAS")
+    st.markdown("### 🔑 Validación de Firma Profesional")
     
-    # Extraer dinámicamente los médicos registrados en la Base de Datos
     conn = get_connection()
     medicos_registrados = [p[0] for p in conn.execute("SELECT nombre FROM profesionales").fetchall()]
     conn.close()
     
-    # Crear listado de opciones agregando la cuenta maestra universal
     opciones_medicos = ["Seleccione Médico..."] + ["CMLeones"] + medicos_registrados
     
     c_m1, c_m2 = st.columns(2)
-    # Cambiado st.text_input por st.selectbox para desplegar listado de nombres
     doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos)
-    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password")
+    # autocomplete="new-password" previene que el navegador pida recordar o almacenar credenciales
+    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="new-password")
     
-    if doc_usuario != "Seleccione Médico..." and doc_cedula:
-        conn = get_connection()
-        es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (doc_usuario, doc_cedula)).fetchone()
-        
-        # Superacceso máster habilitado con la clave universal
-        if es_valido or (doc_usuario == "CMLeones" and doc_cedula == "2468"):
-            st.success(f"🔓 Validado correctamente: {doc_usuario}")
-            st.divider()
-            
-            # Consultar pacientes atendidos por el médico
-            if doc_usuario == "CMLeones" and doc_cedula == "2468":
-                df_pacs = pd.read_sql("SELECT fecha, paciente, observaciones FROM consultas ORDER BY fecha DESC", conn)
-            else:
-                df_pacs = pd.read_sql(f"SELECT fecha, paciente, observaciones FROM consultas WHERE medico='{doc_usuario}' ORDER BY fecha DESC", conn)
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 1. BOTÓN EXPLICITO "INGRESO"
+    if st.button("INGRESO"):
+        if doc_usuario != "Seleccione Médico..." and doc_cedula:
+            conn = get_connection()
+            es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (doc_usuario, doc_cedula)).fetchone()
             conn.close()
             
-            if not df_pacs.empty:
-                # Armar desplegable ordenado por fechas de atención cronológica
-                lista_desplegable = []
-                for _, r_pac in df_pacs.iterrows():
-                    lista_desplegable.append(f"📅 {r_pac['fecha']} | {r_pac['paciente']}")
-                
-                seleccion = st.selectbox("Seleccione el Paciente para Ver/Registrar Historia Clínica", ["Elija un registro..."] + lista_desplegable)
-                
-                if seleccion != "Elija un registro...":
-                    idx = lista_desplegable.index(seleccion)
-                    row_sel = df_pacs.iloc[idx]
-                    paciente_nombre = row_sel['paciente']
-                    
-                    st.markdown(f"### 📋 Expediente Clínico: {paciente_nombre}")
-                    
-                    # Cargar y listar evoluciones anteriores desde base de datos
-                    conn = get_connection()
-                    df_hist_previo = pd.read_sql(f"SELECT fecha_registro, medico, motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente='{paciente_nombre}' ORDER BY id DESC", conn)
-                    conn.close()
-                    
-                    if not df_hist_previo.empty:
-                        st.markdown("##### 📜 Historial Clínico Anterior")
-                        for _, h_row in df_hist_previo.iterrows():
-                            with st.expander(f"⏱️ Atendido el: {h_row['fecha_registro']} por {h_row['medico']}"):
-                                st.write(f"**Motivo de Consulta:** {h_row['motivo_consulta']}")
-                                st.write(f"**Diagnóstico:** {h_row['diagnostico']}")
-                                st.write(f"**Evolución y Tratamiento:** {h_row['evolucion']}")
-                    else:
-                        st.info("ℹ️ No existen registros clínicos anteriores para este paciente.")
-                    
-                    # Formulario limpio de escritura para datos actuales
-                    st.markdown("##### ✏️ Registrar Nueva Evolución")
-                    with st.form("nuevo_registro_clinico", clear_on_submit=False):
-                        motivo_act = st.text_input("Motivo de Consulta", value=row_sel['observaciones'])
-                        diag_act = st.text_area("Diagnóstico Actual")
-                        evol_act = st.text_area("Evolución y Tratamiento Actual")
-                        
-                        if st.form_submit_button("GUARDAR"):
-                            if diag_act and evol_act:
-                                conn = get_connection()
-                                # CONTROL ANTI-DUPLICADOS LÓGICO COMPLETO
-                                ultimo_guardado = conn.execute(
-                                    "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente=? ORDER BY id DESC LIMIT 1", 
-                                    (paciente_nombre,)
-                                ).fetchone()
-                                
-                                if ultimo_guardado and (ultimo_guardado[0] == motivo_act and ultimo_guardado[1] == diag_act and ultimo_guardado[2] == evol_act):
-                                    st.warning("⚠️ El registro clínico ya se encuentra guardado en la base de datos. No se duplicaron datos.")
-                                    conn.close()
-                                else:
-                                    f_reg = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    conn.execute(
-                                        "INSERT INTO historias_clinicas (fecha_registro, medico, paciente, motivo_consulta, diagnostico, evolucion) VALUES (?,?,?,?,?,?)",
-                                        (f_reg, doc_usuario, paciente_nombre, motivo_act, diag_act, evol_act)
-                                    )
-                                    conn.commit()
-                                    conn.close()
-                                    st.success("✅ Datos clínicos almacenados correctamente.")
-                                    time.sleep(0.5)
-                                    st.rerun()
-                            else:
-                                st.error("❌ Complete los campos de Diagnóstico y Evolución antes de guardar.")
+            if es_valido or (doc_usuario == "CMLeones" and doc_cedula == "2468"):
+                st.session_state.med_acceso_concedido = True
+                st.session_state.med_nombre_guardado = doc_usuario
+                st.success(f"🔓 Acceso Autorizado")
+                # 2. BORRADO DE DATOS: Limpiamos los inputs de pantalla forzando un refresco limpio
+                st.rerun()
             else:
-                st.info("No se registran pacientes asignados a este profesional en Caja Diaria.")
+                st.session_state.med_acceso_concedido = False
+                st.error("❌ Credenciales inválidas. Verifique su Profesional y Cédula.")
+    
+    # Si la validación fue aceptada con el botón INGRESO, se muestran las historias clínicas
+    if st.session_state.med_acceso_concedido:
+        medico_activo = st.session_state.med_nombre_guardado
+        st.info(f"👨‍⚕️ Profesional Activo: {medico_activo}")
+        st.divider()
+        
+        conn = get_connection()
+        if medico_activo == "CMLeones":
+            df_pacs = pd.read_sql("SELECT fecha, paciente, observaciones FROM consultas ORDER BY fecha DESC", conn)
         else:
-            st.error("❌ Credenciales inválidas. Verifique su Nombre de Profesional y Cédula.")
+            df_pacs = pd.read_sql(f"SELECT fecha, paciente, observaciones FROM consultas WHERE medico='{medico_activo}' ORDER BY fecha DESC", conn)
+        conn.close()
+        
+        if not df_pacs.empty:
+            lista_desplegable = []
+            for _, r_pac in df_pacs.iterrows():
+                lista_desplegable.append(f"📅 {r_pac['fecha']} | {r_pac['paciente']}")
+            
+            seleccion = st.selectbox("Seleccione el Paciente para Ver/Registrar Historia Clínica", ["Elija un registro..."] + lista_desplegable)
+            
+            if seleccion != "Elija un registro...":
+                idx = lista_desplegable.index(seleccion)
+                row_sel = df_pacs.iloc[idx]
+                paciente_nombre = row_sel['paciente']
+                
+                st.markdown(f"### 📋 Expediente Clínico: {paciente_nombre}")
+                
+                conn = get_connection()
+                df_hist_previo = pd.read_sql(f"SELECT fecha_registro, medico, motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente='{paciente_nombre}' ORDER BY id DESC", conn)
+                conn.close()
+                
+                if not df_hist_previo.empty:
+                    st.markdown("##### 📜 Historial Clínico Anterior")
+                    for _, h_row in df_hist_previo.iterrows():
+                        with st.expander(f"⏱️ Atendido el: {h_row['fecha_registro']} por {h_row['medico']}"):
+                            st.write(f"**Motivo de Consulta:** {h_row['motivo_consulta']}")
+                            st.write(f"**Diagnóstico:** {h_row['diagnostico']}")
+                            st.write(f"**Evolución y Tratamiento:** {h_row['evolucion']}")
+                else:
+                    st.info("ℹ️ No existen registros clínicos anteriores para este paciente.")
+                
+                st.markdown("##### ✏️ Registrar Nueva Evolución")
+                with st.form("nuevo_registro_clinico", clear_on_submit=False):
+                    motivo_act = st.text_input("Motivo de Consulta", value=row_sel['observaciones'])
+                    diag_act = st.text_area("Diagnóstico Actual")
+                    evol_act = st.text_area("Evolución y Tratamiento Actual")
+                    
+                    if st.form_submit_button("GUARDAR"):
+                        if diag_act and evol_act:
+                            conn = get_connection()
+                            ultimo_guardado = conn.execute(
+                                "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente=? ORDER BY id DESC LIMIT 1", 
+                                (paciente_nombre,)
+                            ).fetchone()
+                            
+                            if ultimo_guardado and (ultimo_guardado[0] == motivo_act and ultimo_guardado[1] == diag_act and ultimo_guardado[2] == evol_act):
+                                st.warning("⚠️ El registro clínico ya se encuentra guardado en la base de datos. No se duplicaron datos.")
+                                conn.close()
+                            else:
+                                f_reg = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                conn.execute(
+                                    "INSERT INTO historias_clinicas (fecha_registro, medico, paciente, motivo_consulta, diagnostico, evolucion) VALUES (?,?,?,?,?,?)",
+                                    (f_reg, medico_activo, paciente_nombre, motivo_act, diag_act, evol_act)
+                                )
+                                conn.commit()
+                                conn.close()
+                                st.success("✅ Datos clínicos almacenados correctamente.")
+                                time.sleep(0.5)
+                                st.rerun()
+                        else:
+                            st.error("❌ Complete los campos de Diagnóstico y Evolución antes de guardar.")
+        else:
+            st.info("No se registran pacientes asignados a este profesional en Caja Diaria.")
 
 # --- 9. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
@@ -366,6 +382,8 @@ else:
         st.session_state.autenticado = False
         st.session_state.user_role = None
         st.session_state.user_name = None
+        st.session_state.med_acceso_concedido = False
+        st.session_state.med_nombre_guardado = ""
         st.rerun()
 
     st.sidebar.divider()
