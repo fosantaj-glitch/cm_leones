@@ -11,7 +11,7 @@ st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="🦁"
 st.markdown(
     """
     <style>
-    /* Forzar fondo blanco absoluto en toda la aplicación para fusionar el logo */
+    /* Fondo blanco absoluto para fusionar el logo */
     .stApp { background-color: #ffffff; }
     .block-container { padding-top: 1rem; padding-bottom: 0rem; }
     
@@ -32,6 +32,7 @@ st.markdown(
         background-color: white; padding: 25px; 
         border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
         border-top: 5px solid #d4af37;
+        margin-top: 15px;
     }
 
     /* Tipografía Limpia */
@@ -72,27 +73,26 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
+# --- 5. LOGIN VERTICAL (ESTRUCTURA DIRECTA SIN INTERFERENCIAS) ---
 def login():
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Formato rígido de 3 columnas para evitar que los campos se deformen de lado a lado
+    # Estructura limpia de 3 columnas para encuadrar el centro de forma fija
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
     
     with col_centro:
-        st.markdown("<div class='card-login'>", unsafe_allow_html=True)
-        
-        # Carga limpia de la imagen local para evitar bloques fantasma flotantes
+        # Carga primaria de la imagen en el tope absoluto
         try: 
             st.image("logo leones.jpg", use_container_width=True)
         except: 
             pass
             
+        # Bloque del formulario contenido en su tarjeta blanca estilizada
+        st.markdown("<div class='card-login'>", unsafe_allow_html=True)
+        
         st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
         st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
-        # Inputs de Login
+        # Selección interactiva y credenciales
         b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
         u_nombre = st.text_input("USUARIO")
         p_clave = st.text_input("CLAVE", type="password")
