@@ -101,7 +101,7 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
-# Generador de llave única para re-renderizado total y limpio del selector
+# Fábrica de ciclos de vida: Controla la destrucción forzada del componente de selección
 if 'selector_control' not in st.session_state:
     st.session_state.selector_control = 0
 
@@ -121,6 +121,7 @@ def login():
         st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
+        # El selectbox opera con una clave única que se destruye y renueva al cerrar sesión
         servicios_disponibles = [" ", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox(
             "Elija el servicio al que desea ingresar", 
@@ -129,19 +130,36 @@ def login():
             key=f"widget_servicio_{st.session_state.selector_control}"
         )
         
-        # RENDERIZADO CONDICIONAL NETO: Si está vacío, no se instancia ningún elemento visual intermedio
+        # -------------------------------------------------------------------------
+        # ARQUITECTURA ELITE: Contenedor dinámico aislado.
+        # Bloquea físicamente la renderización de cualquier cuadrícula de Streamlit.
+        # Si b_destino == " ", el contenedor se vacía completamente y no deja rastros.
+        # -------------------------------------------------------------------------
+        zona_dinamica_inputs = st.empty()
+        
         if b_destino == " ":
-            st.info("Por favor, seleccione un servicio arriba para desplegar los campos de acceso.")
+            zona_dinamica_inputs.info("Por favor, seleccione un servicio arriba para desplegar los campos de acceso.")
             u_nombre, p_clave = "", ""
         else:
-            # Campos puros, estables y sin parches intermedios de HTML o inputs ocultos
-            u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key=f"usr_real_{st.session_state.selector_control}")
-            
-            col_pass, col_ojo = st.columns([6, 1])
-            ver_clave = col_ojo.checkbox("👁️", key=f"ojo_real_{st.session_state.selector_control}", help="Mostrar/Ocultar Clave")
-            tipo_input = "default" if ver_clave else "password"
-            
-            p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="new-password", key=f"pwd_real_{st.session_state.selector_control}")
+            with zona_dinamica_inputs.container():
+                # Inputs señuelo en un contenedor invisible para engañar al autocompletado del navegador
+                st.markdown(
+                    """
+                    <div style="display:none;">
+                        <input type="text" name="usr_fake_trap" autocomplete="on">
+                        <input type="password" name="pwd_fake_trap" autocomplete="on">
+                    </div>
+                    """, unsafe_allow_html=True
+                )
+                
+                u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key=f"usr_real_{st.session_state.selector_control}")
+                
+                # Las columnas del ojo se instancian únicamente dentro de este bloque seguro
+                col_pass, col_ojo = st.columns([6, 1])
+                ver_clave = col_ojo.checkbox("👁️", key=f"ojo_real_{st.session_state.selector_control}", help="Mostrar/Ocultar Clave")
+                tipo_input = "default" if ver_clave else "password"
+                
+                p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="new-password", key=f"pwd_real_{st.session_state.selector_control}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
@@ -151,6 +169,7 @@ def login():
                 st.session_state.autenticado = True
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
+                zona_dinamica_inputs.empty()
                 st.rerun()
             else:
                 conn = get_connection()
@@ -161,6 +180,7 @@ def login():
                     st.session_state.autenticado = True
                     st.session_state.user_name = res[0]
                     st.session_state.user_role = res[1]
+                    zona_dinamica_inputs.empty()
                     st.rerun()
                 else:
                     st.error("⚠️ Credenciales incorrectas para este servicio.")
@@ -471,7 +491,14 @@ else:
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
         
-        # Mutamos el control del selector de llaves numéricas: destruye el anterior por completo en el navegador
+        # Purgamos de forma absoluta los inputs para que queden vacíos
+        if "usr_real_input" in st.session_state:
+            st.session_state["usr_real_input"] = ""
+        if "pwd_real_input" in st.session_state:
+            st.session_state["pwd_real_input"] = ""
+            
+        # Incrementamos de forma matemática la clave del widget. 
+        # Esto destruye por completo el selector viejo del navegador y levanta uno en blanco puro (" ")
         st.session_state.selector_control += 1
         st.rerun()
 
