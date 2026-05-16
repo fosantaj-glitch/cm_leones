@@ -122,20 +122,28 @@ def login():
         servicios_disponibles = ["Seleccione un servicio...", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox("Elija el servicio al que desea ingresar", servicios_disponibles, key="login_servicio_key")
         
-        # CAMBIO RIGUROSO ANTI-AUTOLLENADO:
-        # Se inyectan campos fantasmas mudos en HTML para engañar el escaneo inicial del navegador
-        st.markdown('<input type="text" name="fake_user" style="display:none;" />', unsafe_allow_html=True)
-        st.markdown('<input type="password" name="fake_password" style="display:none;" />', unsafe_allow_html=True)
+        # Generamos llaves dinámicas que cambian según el servicio seleccionado.
+        # Esto obliga a Streamlit a destruir el input anterior y renderizar uno nuevo completamente limpio.
+        key_usuario = f"usr_dynamic_{b_destino}"
+        key_clave = f"pwd_dynamic_{b_destino}"
         
-        # Inputs reales protegidos con llaves dinámicas que mutan de acuerdo a la selección de la lista
-        u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"user_clean_{b_destino}")
-        p_clave = st.text_input("CLAVE", value="", type="password", autocomplete="off", key=f"pass_clean_{b_destino}")
+        # Inicializar los estados de los inputs vacíos si cambian de servicio
+        if key_usuario not in st.session_state:
+            st.session_state[key_usuario] = ""
+        if key_clave not in st.session_state:
+            st.session_state[key_clave] = ""
+
+        u_nombre = st.text_input("USUARIO", autocomplete="off", key=key_usuario)
+        p_clave = st.text_input("CLAVE", type="password", autocomplete="off", key=key_clave)
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
             if b_destino == "Seleccione un servicio...":
                 st.error("⚠️ Por favor, seleccione un servicio válido de la lista.")
             elif u_nombre == "CMLeones" and p_clave == "2468":
+                # BORRADO INMEDIATO POST-INGRESO: Limpiamos los campos antes del redireccionamiento
+                st.session_state[key_usuario] = ""
+                st.session_state[key_clave] = ""
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
                 st.session_state.autenticado = True
@@ -146,6 +154,9 @@ def login():
                                    (u_nombre, p_clave, b_destino)).fetchone()
                 conn.close()
                 if res:
+                    # BORRADO INMEDIATO POST-INGRESO
+                    st.session_state[key_usuario] = ""
+                    st.session_state[key_clave] = ""
                     st.session_state.user_role = res[1]
                     st.session_state.user_name = res[0]
                     st.session_state.autenticado = True
@@ -306,6 +317,7 @@ def ejecutar_ingreso_medico(usr, ced):
             st.session_state.med_acceso_concedido = True
             st.session_state.med_nombre_guardado = usr
             
+            # Limpieza absoluta de las variables vinculadas a las llaves de validación médica
             st.session_state["val_usuario"] = "Seleccione Médico..."
             st.session_state["val_cedula"] = ""
         else:
@@ -326,8 +338,7 @@ def bloque_medicos():
     c_m1, c_m2 = st.columns(2)
     doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="val_usuario")
     
-    # Inputs ocultos contra autollendado agresivo también en el bloque médico
-    st.markdown('<input type="password" name="fake_med_pwd" style="display:none;" />', unsafe_allow_html=True)
+    # Campo protegido anti-autollenado dinámico del módulo médico
     doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="off", key="val_cedula")
     
     st.markdown("<br>", unsafe_allow_html=True)
@@ -400,7 +411,7 @@ def bloque_medicos():
             st.markdown("<div class='seccion-clinica'>6. EXAMEN FÍSICO COMENTADO</div>", unsafe_allow_html=True)
             examen_fisico_txt = st.text_area("Descripción del examen físico y exploración del paciente")
             
-            st.markdown("<div class='seccion-clinica'>7. DIAGNÓSTIVO PRESUNTIVO O DEFINITIVO (CIE-10)</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>7. DIAGNÓSTICO PRESUNTIVO O DEFINITIVO (CIE-10)</div>", unsafe_allow_html=True)
             diag_act = st.text_area("Impresión Diagnóstica / Códigos CIE-10")
             
             st.markdown("<div class='seccion-clinica'>8. PLAN DE TRATAMIENTO Y EVOLUCIÓN</div>", unsafe_allow_html=True)
@@ -415,7 +426,7 @@ def bloque_medicos():
                     
                     conn = get_connection()
                     ultimo_guardado = conn.execute(
-                        "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente_cedula=? ORDER BY id DESC LIMIT 1", 
+                        "SELECT motivo_consulta, diagnostico, evolución FROM historias_clinicas WHERE paciente_cedula=? ORDER BY id DESC LIMIT 1", 
                         (p_cedula_input,)
                     ).fetchone()
                     
