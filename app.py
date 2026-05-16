@@ -62,7 +62,7 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS agendamientos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, medico TEXT, hora TEXT, 
                   paciente TEXT, telefono TEXT)''')
-    # Tabla de historias clínicas sin campos redundantes ni hashes complejos
+    # Tabla limpia de historias clínicas vinculada por médico
     c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, 
                   paciente TEXT, motivo_consulta TEXT, diagnostico TEXT, evolucion TEXT)''')
@@ -257,31 +257,31 @@ def bloque_recepcion():
 
 # --- 8. BLOQUE MÉDICOS ---
 def bloque_medicos():
-    st.title("🥼 INTERFAZ DE HISTORIAS CLÍNICAS")
+    st.markdown("## 🥼 INTERFAZ DE HISTORIAS CLÍNICAS")
     
-    # Campos obligatorios para firmar acceso médico
+    # Validación estricta mediante campos de entrada
     c_m1, c_m2 = st.columns(2)
     doc_usuario = c_m1.text_input("DIGITE SU NOMBRE DE USUARIO MÉDICO")
     doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password")
     
     if doc_usuario and doc_cedula:
         conn = get_connection()
-        # El Administrador Maestro puede auditar de forma global, los médicos validan contra tabla profesionales
         es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (doc_usuario, doc_cedula)).fetchone()
         
+        # Superacceso máster habilitado si se usa la clave universal
         if es_valido or (doc_usuario == "CMLeones" and doc_cedula == "2468"):
             st.success(f"🔓 Validado correctamente: {doc_usuario}")
             st.divider()
             
-            # Consultar pacientes atendidos por este médico en Caja Diaria
-            if doc_usuario == "CMLeones":
+            # Consultar pacientes atendidos por el médico
+            if doc_usuario == "CMLeones" and doc_cedula == "2468":
                 df_pacs = pd.read_sql("SELECT fecha, paciente, observaciones FROM consultas ORDER BY fecha DESC", conn)
             else:
                 df_pacs = pd.read_sql(f"SELECT fecha, paciente, observaciones FROM consultas WHERE medico='{doc_usuario}' ORDER BY fecha DESC", conn)
             conn.close()
             
             if not df_pacs.empty:
-                # Mostrar listado estructurado por fechas de atención
+                # Armar desplegable ordenado por fechas de atención cronológica
                 lista_desplegable = []
                 for _, r_pac in df_pacs.iterrows():
                     lista_desplegable.append(f"📅 {r_pac['fecha']} | {r_pac['paciente']}")
@@ -295,7 +295,7 @@ def bloque_medicos():
                     
                     st.markdown(f"### 📋 Expediente Clínico: {paciente_nombre}")
                     
-                    # Consultar y mostrar datos guardados anteriormente
+                    # Cargar y listar evoluciones anteriores desde base de datos
                     conn = get_connection()
                     df_hist_previo = pd.read_sql(f"SELECT fecha_registro, medico, motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente='{paciente_nombre}' ORDER BY id DESC", conn)
                     conn.close()
@@ -310,7 +310,7 @@ def bloque_medicos():
                     else:
                         st.info("ℹ️ No existen registros clínicos anteriores para este paciente.")
                     
-                    # Campos para registrar datos nuevos
+                    # Formulario limpio de escritura para datos actuales
                     st.markdown("##### ✏️ Registrar Nueva Evolución")
                     with st.form("nuevo_registro_clinico", clear_on_submit=False):
                         motivo_act = st.text_input("Motivo de Consulta", value=row_sel['observaciones'])
@@ -320,7 +320,7 @@ def bloque_medicos():
                         if st.form_submit_button("GUARDAR"):
                             if diag_act and evol_act:
                                 conn = get_connection()
-                                # CONTROL ESTRICTO ANTI-DUPLICADOS LÓGICO: Compara contra el último registro exacto guardado
+                                # CONTROL ANTI-DUPLICADOS LÓGICO COMPLETO
                                 ultimo_guardado = conn.execute(
                                     "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente=? ORDER BY id DESC LIMIT 1", 
                                     (paciente_nombre,)
