@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime
 import time
 
-# --- 1. CONFIGURACIÓN DE PÁGINA (COLAPSA LATERAL POR DEFECTO PARA EL LOGIN) ---
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="🦁", layout="wide", initial_sidebar_state="collapsed")
 
 # --- 2. DISEÑO VISUAL SOBRIO Y FUSIONADO EN BLANCO ---
@@ -27,7 +27,7 @@ st.markdown(
     }
     .stButton>button:hover { background-color: #d4af37; color: #003366; }
 
-    /* Tarjeta de Login Vertical Fina y Centrada (Como en el diseño original) */
+    /* Tarjeta de Login Vertical Fina y Centrada */
     .card-login { 
         background-color: white; padding: 25px; 
         border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
@@ -72,19 +72,17 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# --- 5. LOGIN VERTICAL INTEGRADO (FORMATO ORIGINAL ESTRECHO REPARADO) ---
+# --- 5. LOGIN VERTICAL INTEGRADO (FORMATO ORIGINAL ESTRECHO SIN CAMPO FANTASMA) ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # ADN ORIGINAL: Estructura de 3 columnas para centralizar y estrechar el formulario
-    # [1.2, 1, 1.2] fuerza a que la columna central sea fina y los campos no se estiren
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
     
     with col_centro:
         # Contenedor de la tarjeta central vertical fina
         st.markdown("<div class='card-login'>", unsafe_allow_html=True)
         
-        # Muestra el logo limpio arriba sin cuadros de error
+        # ELIMINACIÓN DEL CAMPO FANTASMA: Se carga la imagen de forma directa sin st.container() ni bloques intermedios vacíos
         try: 
             st.image("logo leones.jpg", use_container_width=True)
         except: 
@@ -101,15 +99,12 @@ def login():
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
-            # Credenciales Master fijadas por el usuario
             if u_nombre == "CMLeones" and p_clave == "2468":
                 st.session_state.autenticado = True
-                st.session_state.user_role = b_destino # Permite ir a donde elija el Admin
+                st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
-                # Forzar recarga para abrir la barra lateral y cargar el bloque
                 st.rerun()
             else:
-                # Validación por Base de Datos de Permisos
                 conn = get_connection()
                 res = conn.execute("SELECT nombre, bloque FROM usuarios WHERE nombre=? AND cedula=? AND bloque=?", 
                                    (u_nombre, p_clave, b_destino)).fetchone()
@@ -124,7 +119,7 @@ def login():
                     
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 6. BLOQUE ADMINISTRACIÓN (CON LISTADO Y EDICIÓN COMPLETA) ---
+# --- 6. BLOQUE ADMINISTRACIÓN ---
 def bloque_administracion():
     st.title("⚙️ ADMINISTRACIÓN GENERAL")
     menu = st.sidebar.selectbox("MENÚ", ["GESTIÓN DE PERMISOS", "GESTIÓN PROFESIONALES", "BASE DE DATOS PACIENTES", "LIQUIDACIÓN MENSUAL"])
@@ -173,7 +168,7 @@ def bloque_administracion():
                         if del_id != "Seleccione...":
                             db = get_connection(); db.execute("DELETE FROM profesionales WHERE id=?", (del_id,)); db.commit(); db.close(); st.rerun()
 
-# --- 7. BLOQUE RECEPCIÓN (ADN INTEGRADO DE FÁBRICA DE TUBOS) ---
+# --- 7. BLOQUE RECEPCIÓN ---
 def bloque_recepcion():
     st.title("🛎️ RECEPCIÓN")
     m = st.sidebar.radio("MENÚ", ["CAJA DIARIA", "AGENDAMIENTOS", "VISUALIZAR/EDITAR CONSULTAS"])
@@ -250,11 +245,10 @@ def bloque_recepcion():
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
-# --- 8. EJECUCIÓN NAVEGACIÓN GENERAL (ADN DE INTEGRAMED) ---
+# --- 8. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
     login()
 else:
-    # Sidebar común con logo
     st.sidebar.markdown("<br>", unsafe_allow_html=True)
     try: st.sidebar.image("logo leones.jpg", width=120)
     except: pass
@@ -266,7 +260,6 @@ else:
         st.rerun()
 
     st.sidebar.divider()
-    # Navegación inteligente por roles de Integramed
     if st.session_state.user_role == "ADMINISTRACION":
         bloque_administracion()
     elif st.session_state.user_role == "RECEPCION":
