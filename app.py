@@ -13,10 +13,7 @@ st.markdown(
     <style>
     /* Forzar fondo blanco absoluto en toda la aplicación para fusionar el logo */
     .stApp { background-color: #ffffff; }
-    
-    /* Eliminar cualquier margen superior por defecto de Streamlit */
-    .block-container { padding-top: 0rem !important; padding-bottom: 0rem; }
-    [data-testid="stHeader"] { display: none; }
+    .block-container { padding-top: 1rem; padding-bottom: 0rem; }
     
     /* Barra Lateral Azul y Oro */
     [data-testid="stSidebar"] { background-color: #003366 !important; }
@@ -30,30 +27,18 @@ st.markdown(
     }
     .stButton>button:hover { background-color: #d4af37; color: #003366; }
 
-    /* Centrado absoluto de la tarjeta mediante CSS puro sin usar st.columns (Destruye campos fantasmas) */
-    .login-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-        padding-top: 2rem;
-    }
-
-    /* Tarjeta de Login Vertical Fina y Ajustada (Ancho de la foto) */
+    /* Tarjeta de Login Vertical Fina y Centrada */
     .card-login { 
-        background-color: white; 
-        padding: 25px; 
-        border-radius: 12px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        background-color: white; padding: 25px; 
+        border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
         border-top: 5px solid #d4af37;
-        width: 360px; /* Tamaño estricto para que los campos no se ensanchen */
     }
 
     /* Tipografía Limpia */
-    h2 { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; margin-bottom: 5px; margin-top: 10px; }
+    h2 { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; margin-bottom: 5px; }
     .subtitle { color: #d4af37; font-weight: bold; letter-spacing: 2px; font-size: 1.1em; margin-bottom: 15px; text-align: center; }
 
-    /* Ajuste de márgenes para inputs */
+    /* Forzar alineación de inputs */
     .stTextInput>div, .stSelectbox>div { margin-bottom: -15px; }
     .total-box { background-color: #f1f3f5; color: #003366; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 1.1em; font-weight: bold; margin-top: 10px; }
     </style>
@@ -87,24 +72,27 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# --- 5. LOGIN MAESTRO DEFINITIVO (SIN ELEMENTOS CONFLICTIVOS) ---
+# --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
 def login():
-    # Abrimos el contenedor de centrado CSS
-    st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-    with st.container():
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Formato rígido de 3 columnas para evitar que los campos se deformen de lado a lado
+    col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
+    
+    with col_centro:
         st.markdown("<div class='card-login'>", unsafe_allow_html=True)
         
-        # El logo se ejecuta de primero absoluto dentro de la tarjeta
+        # Carga limpia de la imagen local para evitar bloques fantasma flotantes
         try: 
             st.image("logo leones.jpg", use_container_width=True)
         except: 
             pass
             
         st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
-        st.markdown("<p class='subtitle'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
+        st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
-        # Campos de interacción limpios
+        # Inputs de Login
         b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
         u_nombre = st.text_input("USUARIO")
         p_clave = st.text_input("CLAVE", type="password")
@@ -129,8 +117,7 @@ def login():
                 else:
                     st.error("⚠️ Credenciales incorrectas para este bloque.")
                     
-        st.markdown("</div>", unsafe_allow_html=True) # Cierre card-login
-    st.markdown("</div>", unsafe_allow_html=True) # Cierre login-container
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 6. BLOQUE ADMINISTRACIÓN ---
 def bloque_administracion():
