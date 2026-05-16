@@ -4,8 +4,8 @@ import sqlite3
 from datetime import datetime
 import time
 
-# --- 1. CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="🦁", layout="wide", initial_sidebar_state="collapsed")
+# --- 1. CONFIGURACIÓN DE PÁGINA (CAMBIO DE FAVICON POR EL LOGO REAL) ---
+st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="logo leones.jpg", layout="wide", initial_sidebar_state="collapsed")
 
 # --- 2. DISEÑO VISUAL SOBRIO Y FUSIONADO EN BLANCO ---
 st.markdown(
@@ -74,13 +74,13 @@ if 'autenticado' not in st.session_state:
 
 # --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
 def login():
-    # Formato rígido de 3 columnas para evitar que los campos se deformen de lado a lado
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
     
     with col_centro:
         st.markdown("<div class='card-login'>", unsafe_allow_html=True)
         
-        # Carga limpia de la imagen local para evitar bloques fantasma flotantes
         try: 
             st.image("logo leones.jpg", use_container_width=True)
         except: 
