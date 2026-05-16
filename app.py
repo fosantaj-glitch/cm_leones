@@ -63,7 +63,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS agendamientos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, medico TEXT, hora TEXT, 
                   paciente TEXT, telefono TEXT)''')
-    # NUEVA TABLA: Historias Clínicas con firma MD5 para control estricto de duplicados accidentales
     c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, 
                   paciente TEXT, cedula_paciente TEXT, motivo_consulta TEXT, diagnostico TEXT, 
@@ -78,26 +77,30 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# --- 5. LOGIN VERTICAL ---
+# --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
 def login():
-    st.markdown("<br>", unsafe_allow_html=True)
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
     
     with col_centro:
         st.markdown("<div class='card-login'>", unsafe_allow_html=True)
-        try: st.image("logo leones.jpg", use_container_width=True)
-        except: pass
+        
+        try: 
+            st.image("logo leones.jpg", use_container_width=True)
+        except: 
+            pass
             
         st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
         st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
+        # Inputs de Login
         b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
         u_nombre = st.text_input("USUARIO")
         p_clave = st.text_input("CLAVE", type="password")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
+            # CLAVE MAESTRA UNIVERSAL TEMPORAL (Prioridad absoluta)
             if u_nombre == "CMLeones" and p_clave == "2468":
                 st.session_state.autenticado = True
                 st.session_state.user_role = b_destino
@@ -252,7 +255,7 @@ def bloque_recepcion():
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
-# --- 8. NUEVO: BLOQUE MÉDICOS (HISTORIAS CLÍNICAS E IDEMPOTENCIA) ---
+# --- 8. BLOQUE MÉDICOS ---
 def bloque_medicos():
     st.title("🥼 MÓDULO DE PROFESIONALES MÉDICOS")
     st.markdown("### 🔑 Validación de Firma Profesional")
@@ -262,7 +265,6 @@ def bloque_medicos():
     m_cedula = c2.text_input("NÚMERO DE CÉDULA MÉDICA", type="password", placeholder="Digite su documento...")
 
     if m_nombre and m_cedula:
-        # Validar existencia del médico en la Base de Datos
         conn = get_connection()
         es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (m_nombre, m_cedula)).fetchone()
         
@@ -271,12 +273,10 @@ def bloque_medicos():
             st.divider()
             
             st.markdown("### 📋 Listado de Pacientes Atendidos por Fecha")
-            # Consultar todos los pacientes asignados a este médico en Caja Diaria
             df_pacientes = pd.read_sql(f"SELECT fecha, paciente, cedula, observaciones FROM consultas WHERE medico='{m_nombre}' ORDER BY fecha DESC", conn)
             conn.close()
             
             if not df_pacientes.empty:
-                # Armamos la lista para mostrar de forma amigable en el selector
                 opciones_pacientes = []
                 for idx, row in df_pacientes.iterrows():
                     opciones_pacientes.append(f"📅 {row['fecha']} | Paciente: {row['paciente']} (CI: {row['cedula']})")
@@ -284,13 +284,11 @@ def bloque_medicos():
                 p_seleccionado = st.selectbox("Seleccione el paciente para abrir Historia Clínica", ["Elija un paciente..."] + opciones_pacientes)
                 
                 if p_seleccionado != "Elija un paciente...":
-                    # Extraer el índice seleccionado del array para mapear al paciente correcto
                     idx_sel = opciones_pacientes.index(p_seleccionado)
                     datos_paciente = df_pacientes.iloc[idx_sel]
                     
                     st.markdown(f"## 🩺 Historia Clínica: {datos_paciente['paciente']}")
                     
-                    # Traer registros médicos anteriores de la tabla de historias clínicas
                     conn = get_connection()
                     historial_previo = pd.read_sql(f"SELECT fecha_registro, motivo_consulta, diagnostico, evolucion_tratamiento FROM historias_clinicas WHERE paciente='{datos_paciente['paciente']}' ORDER BY id DESC", conn)
                     conn.close()
@@ -305,21 +303,18 @@ def bloque_medicos():
                     else:
                         st.info("ℹ️ Este paciente no registra historias clínicas anteriores en este centro.")
                     
-                    # Formulario para agregar una nueva evolución médica
                     st.markdown("### ✏️ Registrar Nueva Evolución/Consulta")
-                    with st.form("form_historia", clear_on_submit=False):
+                    with st.form("form_comp_historia", clear_on_submit=False):
                         motivo = st.text_input("Motivo de la Consulta Actual", value=datos_paciente['observaciones'])
                         diagnostico = st.text_area("Diagnóstico Médico Presuntivo/Definitivo")
                         evolucion = st.text_area("Evolución, Tratamiento e Indicaciones Médicas")
                         
-                        # Generar un hash único combinando los campos para evitar duplicados accidentales
                         cadena_hash = f"{m_nombre}-{datos_paciente['paciente']}-{motivo}-{diagnostico}-{evolucion}"
                         hash_detectado = hashlib.md5(cadena_hash.encode('utf-8')).hexdigest()
                         
                         if st.form_submit_button("GUARDAR HISTORIA CLÍNICA"):
                             if diagnostico and evolucion:
                                 conn = get_connection()
-                                # Verificar si el último registro guardado coincide exactamente con este hash
                                 existe_duplicado = conn.execute("SELECT id FROM historias_clinicas WHERE hash_control=?", (hash_detectado,)).fetchone()
                                 
                                 if existe_duplicado:
@@ -327,10 +322,11 @@ def bloque_medicos():
                                     conn.close()
                                 else:
                                     f_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    # CORREGIDO: Ahora se inserta hash_detectado correctamente para que el validador funcione
                                     conn.execute('''INSERT INTO historias_clinicas 
                                                     (fecha_registro, medico, paciente, cedula_paciente, motivo_consulta, diagnostico, evolucion_tratamiento, hash_control) 
                                                     VALUES (?,?,?,?,?,?,?,?)''', 
-                                                 (f_actual, m_nombre, datos_paciente['paciente'], datos_paciente['cedula'], motivo, diagnostico, evolucion, hash_control))
+                                                 (f_actual, m_nombre, datos_paciente['paciente'], datos_paciente['cedula'], motivo, diagnostico, evolucion, hash_detectado))
                                     conn.commit()
                                     conn.close()
                                     st.success("✅ Historia Clínica guardada de manera exitosa y segura.")
