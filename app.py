@@ -122,11 +122,9 @@ def login():
         servicios_disponibles = ["Seleccione un servicio...", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox("Elija el servicio al que desea ingresar", servicios_disponibles, key="login_servicio_key")
         
-        # Desactivar autocompletado en el nombre de usuario
-        u_nombre = st.text_input("USUARIO", autocomplete="off")
-        
-        # PROPIEDADES DIRECTAS EXCLUSIVAS ANTI-GUARDADO Y ANTI-RELLENO DE CONTRASEÑA
-        p_clave = st.text_input("CLAVE", type="password", autocomplete="off")
+        # SOLUCIÓN DIRECTA: Las llaves dinámicas 'key' destruyen el valor previo del navegador al cambiar de opción
+        u_nombre = st.text_input("USUARIO", autocomplete="off", key=f"usr_input_{b_destino}")
+        p_clave = st.text_input("CLAVE", type="password", autocomplete="off", key=f"pwd_input_{b_destino}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
@@ -375,7 +373,7 @@ def bloque_medicos():
             p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula, autocomplete="off")
             p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE", autocomplete="off")
             
-            st.markdown("<div class='seccion-clinica'>2. CONTACTO DE EMERGENCY DEL PACIENTE</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>2. CONTACTO DE EMERGENCIA DEL PACIENTE</div>", unsafe_allow_html=True)
             col_em1, col_em2 = st.columns(2)
             p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA", autocomplete="off")
             p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA", autocomplete="off")
