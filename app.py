@@ -45,7 +45,7 @@ st.markdown(
     /* Contenedor estético para la Hoja Modelo de Historia Clínica */
     .hoja-clinica {
         background-color: #f8f9fa;
-        padding: 20px;
+        padding: 25px;
         border-radius: 8px;
         border: 1px solid #e9ecef;
         margin-top: 15px;
@@ -57,6 +57,14 @@ st.markdown(
         margin-top: 15px;
         margin-bottom: 10px;
         font-size: 1.1em;
+    }
+    .cabecera-paciente {
+        background-color: #003366;
+        color: white;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True
@@ -273,7 +281,7 @@ def bloque_recepcion():
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
-# --- 8. FUNCION CALLBACK EXPERTA PARA LOGEAR Y VACIAR CAMPOS SIN ERROR DE API ---
+# --- 8. CALLBACK DE INGRESO MÉDICO (LIMPIEZA DE ENTRADAS) ---
 def ejecutar_ingreso_medico(usr, ced):
     if usr != "Seleccione Médico..." and ced:
         conn = sqlite3.connect('club_leones_centro_medico.db')
@@ -284,7 +292,7 @@ def ejecutar_ingreso_medico(usr, ced):
             st.session_state.med_acceso_concedido = True
             st.session_state.med_nombre_guardado = usr
             
-            # Limpieza segura de los campos desde el callback de Streamlit
+            # Limpieza instantánea y vaciado de los inputs mediante callback
             st.session_state["val_usuario"] = "Seleccione Médico..."
             st.session_state["val_cedula"] = ""
         else:
@@ -303,14 +311,10 @@ def bloque_medicos():
     opciones_medicos = ["Seleccione Médico..."] + ["CMLeones"] + medicos_registrados
     
     c_m1, c_m2 = st.columns(2)
-    
-    # Asignación de llaves del estado (key) para que respondan al vaciado dinámico
     doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="val_usuario")
     doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="new-password", key="val_cedula")
     
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # El botón ahora ejecuta la función por callback (on_click) pasando los argumentos para evitar la mutación prohibida
     st.button("INGRESO", on_click=ejecutar_ingreso_medico, args=(doc_usuario, doc_cedula))
     
     if st.session_state.med_acceso_concedido:
@@ -337,7 +341,16 @@ def bloque_medicos():
                 row_sel = df_pacs.iloc[idx]
                 paciente_nombre = row_sel['paciente']
                 
-                st.markdown(f"### 📋 Expediente Clínico: {paciente_nombre}")
+                # --- SOLUCIÓN DIRECTA: CABECERA INYECTADA CON LOS DATOS REALES ---
+                st.markdown(
+                    f"""
+                    <div class='cabecera-paciente'>
+                        📋 PACIENTE SELECCIONADO: {paciente_nombre.upper()} <br>
+                        🗓️ FECHA DE ATENCIÓN EN COBRO: {row_sel['fecha']}
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
                 
                 conn = get_connection()
                 df_hist_previo = pd.read_sql(f"SELECT fecha_registro, medico, motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente='{paciente_nombre}' ORDER BY id DESC", conn)
@@ -346,7 +359,7 @@ def bloque_medicos():
                 if not df_hist_previo.empty:
                     st.markdown("##### 📜 Historial Clínico Anterior")
                     for _, h_row in df_hist_previo.iterrows():
-                        with st.expander(f"⏱️ Registro Clínico del: {h_row['fecha_registro']} (Atendido por {h_row['medico']})"):
+                        with st.expander(f"⏱ *Registro Clínico del: {h_row['fecha_registro']} (Por {h_row['medico']})"):
                             st.write(f"**Motivo:** {h_row['motivo_consulta']}")
                             st.write(f"**Diagnóstico:** {h_row['diagnostico']}")
                             st.write(f"**Evolución:** {h_row['evolucion']}")
@@ -355,11 +368,12 @@ def bloque_medicos():
                 
                 # --- HOJA MODELO DE HISTORIA CLÍNICA INTEGRADA ---
                 st.markdown("<div class='hoja-clinica'>", unsafe_allow_html=True)
-                st.subheader("📝 HOJA MODELO DE HISTORIA CLÍNICA (ESTÁNDAR)")
+                st.subheader(f"📝 FICHA CLÍNICA DE LLENADO: {paciente_nombre.upper()}")
                 
                 with st.form("nuevo_registro_clinico", clear_on_submit=False):
                     
                     st.markdown("<div class='seccion-clinica'>1. MOTIVO DE CONSULTA Y ANAMNESIS</div>", unsafe_allow_html=True)
+                    # El valor por defecto (value) toma de forma reactiva las observaciones de caja diaria
                     motivo_act = st.text_input("Motivo de la Consulta Actual", value=row_sel['observaciones'])
                     
                     st.markdown("<div class='seccion-clinica'>2. SIGNOS VITALES</div>", unsafe_allow_html=True)
@@ -408,7 +422,7 @@ def bloque_medicos():
                                 )
                                 conn.commit()
                                 conn.close()
-                                st.success("✅ Datos clínicos de la Hoja Modelo almacenados correctamente.")
+                                st.success("✅ Datos clínicos almacenados correctamente.")
                                 time.sleep(0.5)
                                 st.rerun()
                         else:
