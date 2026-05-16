@@ -79,7 +79,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS agendamientos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, medico TEXT, hora TEXT, 
                   paciente TEXT, telefono TEXT)''')
-    # Actualización de la tabla para soportar la estructura de la Hoja Modelo
     c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, paciente TEXT, 
                   motivo_consulta TEXT, signos_vitales TEXT, antecedentes TEXT, examen_fisico TEXT, 
@@ -100,11 +99,6 @@ if 'med_acceso_concedido' not in st.session_state:
     st.session_state.med_acceso_concedido = False
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
-
-if 'input_med_usuario' not in st.session_state:
-    st.session_state.input_med_usuario = "Seleccione Médico..."
-if 'input_med_cedula' not in st.session_state:
-    st.session_state.input_med_cedula = ""
 
 # --- 5. LOGIN VERTICAL ---
 def login():
@@ -279,7 +273,25 @@ def bloque_recepcion():
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
-# --- 8. BLOQUE MÉDICOS ---
+# --- 8. FUNCION CALLBACK EXPERTA PARA LOGEAR Y VACIAR CAMPOS SIN ERROR DE API ---
+def ejecutar_ingreso_medico(usr, ced):
+    if usr != "Seleccione Médico..." and ced:
+        conn = sqlite3.connect('club_leones_centro_medico.db')
+        es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (usr, ced)).fetchone()
+        conn.close()
+        
+        if es_valido or (usr == "CMLeones" and ced == "2468"):
+            st.session_state.med_acceso_concedido = True
+            st.session_state.med_nombre_guardado = usr
+            
+            # Limpieza segura de los campos desde el callback de Streamlit
+            st.session_state["val_usuario"] = "Seleccione Médico..."
+            st.session_state["val_cedula"] = ""
+        else:
+            st.session_state.med_acceso_concedido = False
+            st.sidebar.error("❌ Credenciales inválidas.")
+
+# --- 9. BLOQUE MÉDICOS ---
 def bloque_medicos():
     st.markdown("## 🥼 INTERFAZ DE HISTORIAS CLÍNICAS")
     st.markdown("### 🔑 Validación de Firma Profesional")
@@ -291,27 +303,15 @@ def bloque_medicos():
     opciones_medicos = ["Seleccione Médico..."] + ["CMLeones"] + medicos_registrados
     
     c_m1, c_m2 = st.columns(2)
-    doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="input_med_usuario")
-    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="new-password", key="input_med_cedula")
+    
+    # Asignación de llaves del estado (key) para que respondan al vaciado dinámico
+    doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="val_usuario")
+    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="new-password", key="val_cedula")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    if st.button("INGRESO"):
-        if doc_usuario != "Seleccione Médico..." and doc_cedula:
-            conn = get_connection()
-            es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (doc_usuario, doc_cedula)).fetchone()
-            conn.close()
-            
-            if es_valido or (doc_usuario == "CMLeones" and doc_cedula == "2468"):
-                st.session_state.med_acceso_concedido = True
-                st.session_state.med_nombre_guardado = doc_usuario
-                
-                st.session_state.input_med_usuario = "Seleccione Médico..."
-                st.session_state.input_med_cedula = ""
-                st.rerun()
-            else:
-                st.session_state.med_acceso_concedido = False
-                st.error("❌ Credenciales inválidas. Verifique su Profesional y Cédula.")
+    # El botón ahora ejecuta la función por callback (on_click) pasando los argumentos para evitar la mutación prohibida
+    st.button("INGRESO", on_click=ejecutar_ingreso_medico, args=(doc_usuario, doc_cedula))
     
     if st.session_state.med_acceso_concedido:
         medico_activo = st.session_state.med_nombre_guardado
@@ -386,12 +386,10 @@ def bloque_medicos():
                     
                     if st.form_submit_button("GUARDAR"):
                         if diag_act and evol_act:
-                            # Empaquetamos los bloques de la Hoja Modelo en strings formateados para la DB
                             signos_vitales_compuesto = f"PA: {pa} | FC: {fc} | FR: {fr} | Temp: {temp}"
                             antecedentes_compuesto = f"Personales: {ant_personales} \nFamiliares: {ant_familiares}"
                             
                             conn = get_connection()
-                            # CONTROL ANTI-DUPLICADOS LÓGICO COMPLETO
                             ultimo_guardado = conn.execute(
                                 "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente=? ORDER BY id DESC LIMIT 1", 
                                 (paciente_nombre,)
@@ -419,7 +417,7 @@ def bloque_medicos():
         else:
             st.info("No se registran pacientes asignados a este profesional en Caja Diaria.")
 
-# --- 9. EJECUCIÓN NAVEGACIÓN GENERAL ---
+# --- 10. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
     login()
 else:
