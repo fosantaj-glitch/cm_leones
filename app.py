@@ -7,7 +7,7 @@ import time
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="logo leones.jpg", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. DISEÑO VISUAL SOBRIO Y FUSIONADO EN BLANCO Y ANTI-AUTOLLENADO ---
+# --- 2. DISEÑO VISUAL SOBRIO Y FUSIONADO EN BLANCO ---
 st.markdown(
     """
     <style>
@@ -81,7 +81,7 @@ def init_db():
                   paciente TEXT, telefono TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, 
-                  paciente_nombre TEXT, patiente_cedula TEXT, paciente_telefono TEXT,
+                  paciente_nombre TEXT, paciente_cedula TEXT, paciente_telefono TEXT,
                   contacto_emergencia_nombre TEXT, contacto_emergencia_telefono TEXT,
                   motivo_consulta TEXT, signos_vitales TEXT, antecedentes TEXT, 
                   examen_fisico TEXT, diagnostico TEXT, evolucion TEXT)''')
@@ -102,28 +102,41 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
+if 'login_servicio_key' not in st.session_state:
+    st.session_state.login_servicio_key = " "
 if 'selector_control' not in st.session_state:
     st.session_state.selector_control = 0
 
-# --- 5. LOGIN VERTICAL ---
+# --- 5. FUNCIONES DE LIMPIEZA ABSOLUTA ---
+def reset_campos_login():
+    """Limpia los estados de los campos de entrada de credenciales en el cambio de servicio"""
+    servicio = st.session_state.get(f"login_service_key_{st.session_state.selector_control}", " ")
+    st.session_state[f"usr_val_{servicio}"] = ""
+    st.session_state[f"pwd_val_{servicio}"] = ""
+
+# --- 6. LOGIN VERTICAL ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
     
     with col_centro:
         st.markdown("<div class='card-login'>", unsafe_allow_html=True)
-        try: st.image("logo leones.jpg", use_container_width=True)
-        except: pass
+        try: 
+            st.image("logo leones.jpg", use_container_width=True)
+        except: 
+            pass
             
         st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #d4af37; font-weight: bold; margin-bottom: 20px;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
+        st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
+        # Selector inicializado con espacio vacío puro y callback on_change para vaciar los campos
         servicios_disponibles = [" ", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox(
             "Elija el servicio al que desea ingresar", 
             servicios_disponibles, 
-            key=f"login_service_key_{st.session_state.selector_control}"
+            key=f"login_service_key_{st.session_state.selector_control}",
+            on_change=reset_campos_login
         )
         
         contenedor_inputs = st.empty()
@@ -133,33 +146,32 @@ def login():
             u_nombre, p_clave = "", ""
         else:
             with contenedor_inputs.container():
-                # PASO DE SEGURIDAD ABSOLUTO: Checkbox manual para romper el renderizado predictivo del navegador
-                firmar_acceso = st.checkbox("✍️ Habilitar firma manual de acceso personal", key=f"firmar_{b_destino}")
+                # Forzar estados vacíos en session_state atados al servicio activo
+                if f"usr_val_{b_destino}" not in st.session_state:
+                    st.session_state[f"usr_val_{b_destino}"] = ""
+                if f"pwd_val_{b_destino}" not in st.session_state:
+                    st.session_state[f"pwd_val_{b_destino}"] = ""
+
+                u_nombre = st.text_input("USUARIO", autocomplete="off", key=f"usr_val_{b_destino}")
                 
-                if not firmar_acceso:
-                    st.caption("Marque la casilla para habilitar los campos vacíos de escritura obligatoria.")
-                    u_nombre, p_clave = "", ""
-                else:
-                    # Los campos se crean en blanco absoluto solo cuando el usuario lo decide conscientemente
-                    u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_safe_{b_destino}")
-                    
-                    col_pass, col_ojo = st.columns([6, 1])
-                    ver_clave = col_ojo.checkbox("👁️", key=f"ojo_{b_destino}", help="Mostrar/Ocultar Clave")
-                    tipo_input = "default" if ver_clave else "password"
-                    
-                    p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="off", key=f"pwd_safe_{b_destino}")
+                # Integración limpia del Icono del Ojo para Mostrar/Ocultar Clave
+                col_pass, col_ojo = st.columns([6, 1])
+                ver_clave = col_ojo.checkbox("👁️", key=f"ojo_{b_destino}", help="Mostrar/Ocultar Clave")
+                tipo_input = "default" if ver_clave else "password"
+                
+                p_clave = col_pass.text_input("CLAVE", type=tipo_input, autocomplete="off", key=f"pwd_val_{b_destino}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
             if b_destino == " " or not u_nombre or not p_clave:
-                st.error("⚠️ Complete todos los campos personales de acceso manual marcando la casilla de firma.")
+                st.error("⚠️ Complete todos los campos personales de acceso manual.")
             elif u_nombre == "CMLeones" and p_clave == "2468":
-                # PURGA Y VACIADO ANTES DEL REDIRECCIONAMIENTO
-                st.session_state[f"usr_safe_{b_destino}"] = ""
-                st.session_state[f"pwd_safe_{b_destino}"] = ""
+                # Purgar datos de los inputs antes de conceder acceso
+                st.session_state[f"usr_val_{b_destino}"] = ""
+                st.session_state[f"pwd_val_{b_destino}"] = ""
+                st.session_state.autenticado = True
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
-                st.session_state.autenticado = True
                 contenedor_inputs.empty()
                 st.rerun()
             else:
@@ -168,19 +180,20 @@ def login():
                                    (u_nombre, p_clave, b_destino)).fetchone()
                 conn.close()
                 if res:
-                    # PURGA Y VACIADO ANTES DEL REDIRECCIONAMIENTO
-                    st.session_state[f"usr_safe_{b_destino}"] = ""
-                    st.session_state[f"pwd_safe_{b_destino}"] = ""
-                    st.session_state.user_role = res[1]
-                    st.session_state.user_name = res[0]
+                    # Purgar datos de los inputs antes de conceder acceso
+                    st.session_state[f"usr_val_{b_destino}"] = ""
+                    st.session_state[f"pwd_val_{b_destino}"] = ""
                     st.session_state.autenticado = True
+                    st.session_state.user_name = res[0]
+                    st.session_state.user_role = res[1]
                     contenedor_inputs.empty()
                     st.rerun()
                 else:
                     st.error("⚠️ Credenciales incorrectas para este servicio.")
+                    
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 6. BLOQUE ADMINISTRACIÓN ---
+# --- 7. BLOQUE ADMINISTRACIÓN ---
 def bloque_administracion():
     st.title("⚙️ ADMINISTRACIÓN GENERAL")
     menu = st.sidebar.radio("MENÚ", ["GESTIÓN DE PERMISOS", "GESTIÓN PROFESIONALES", "BASE DE DATOS PACIENTES", "LIQUIDACIÓN MENSUAL"])
@@ -189,8 +202,7 @@ def bloque_administracion():
         st.header("🛂 Control de Permisos")
         with st.form("f_per", clear_on_submit=True):
             c1, c2, c3 = st.columns(3)
-            n = c1.text_input("Nombre completo", autocomplete="off")
-            c = c2.text_input("Cédula (clave)", type="password", autocomplete="off")
+            n, c = c1.text_input("Nombre completo"), c2.text_input("Cédula (clave)", type="password")
             b = c3.selectbox("Asignar bloque", ["RECEPCION", "CONTABILIDAD", "MEDICOS"])
             if st.form_submit_button("Autorizar Acceso"):
                 if n and c:
@@ -209,8 +221,8 @@ def bloque_administracion():
             with col1:
                 with st.form("add_doc", clear_on_submit=True):
                     st.write("**Agregar Nuevo Médico**")
-                    n_doc = st.text_input("Nombre", autocomplete="off")
-                    c_doc = st.text_input("Cédula", type="password", autocomplete="off")
+                    n_doc = st.text_input("Nombre")
+                    c_doc = st.text_input("Cédula", type="password")
                     if st.form_submit_button("Guardar"):
                         if n_doc:
                             db = get_connection(); db.execute("INSERT INTO profesionales (nombre, cedula) VALUES (?,?)", (n_doc, c_doc)); db.commit(); db.close(); st.rerun()
@@ -218,7 +230,7 @@ def bloque_administracion():
                 with st.form("edit_doc"):
                     st.write("**Médico a corregir**")
                     sel_id = st.selectbox("Elegir ID", ["Seleccione..."] + list(df_p['id']))
-                    n_curr = st.text_input("Escriba el nombre correcto", autocomplete="off")
+                    n_curr = st.text_input("Escriba el nombre correcto")
                     if st.form_submit_button("Actualizar"):
                         if sel_id != "Seleccione..." and n_curr:
                             db = get_connection(); db.execute("UPDATE profesionales SET nombre=? WHERE id=?", (n_curr, sel_id)); db.commit(); db.close(); st.rerun()
@@ -245,7 +257,7 @@ def bloque_administracion():
         st.header("📊 Liquidación Mensual")
         st.info("Espacio destinado para reportes y cierres financieros.")
 
-# --- 7. BLOQUE RECEPCIÓN ---
+# --- 8. BLOQUE RECEPCIÓN ---
 def bloque_recepcion():
     st.title("🛎️ RECEPCIÓN")
     m = st.sidebar.radio("MENÚ", ["CAJA DIARIA", "AGENDAMIENTOS", "VISUALIZAR/EDITAR CONSULTAS"])
@@ -257,11 +269,11 @@ def bloque_recepcion():
         f_f, f_p = c1.date_input("FECHA"), c2.selectbox("FORMA DE PAGO", ["Efectivo", "Transferencia", "Pago Plux", "Deuna", "DataFast"])
         med = c1.selectbox("Médico/Especialista", ["Seleccione Médico..."] + profes)
         vc = c2.number_input("Valor Consulta", value=0.0)
-        pac = c1.text_input("Nombre del Paciente", autocomplete="off")
+        pac = c1.text_input("Nombre del Paciente")
         vp = c2.number_input("Valor Procedimiento", value=0.0)
-        ced = c1.text_input("Cédula (Opcional)", autocomplete="off")
+        ced = c1.text_input("Cédula (Opcional)")
         vi = c2.number_input("Valor Inyección", value=0.0)
-        tel = c1.text_input("Teléfono (Opcional)", autocomplete="off")
+        tel = c1.text_input("Teléfono (Opcional)")
         vce = c2.number_input("Valor Certificado", value=0.0)
         obs = st.text_area("Observaciones")
         total = vc + vp + vi + vce
@@ -286,8 +298,8 @@ def bloque_recepcion():
                     if col_b.button("Borrar", key=f"d_{h}"): 
                         db = get_connection(); db.execute("DELETE FROM agendamientos WHERE fecha=? AND medico=? AND hora=?", (str(ag_f), ag_m, h)); db.commit(); db.close(); st.rerun()
                 else:
-                    pn = col_p.text_input("Paciente", key=f"p_{h}", label_visibility="collapsed", placeholder="Nombre...", autocomplete="off")
-                    pt = col_t.text_input("Teléfono", key=f"t_{h}", label_visibility="collapsed", placeholder="Teléfono...", autocomplete="off")
+                    pn = col_p.text_input("Paciente", key=f"p_{h}", label_visibility="collapsed", placeholder="Nombre...")
+                    pt = col_t.text_input("Teléfono", key=f"t_{h}", label_visibility="collapsed", placeholder="Teléfono...")
                     if col_b.button("💾", key=f"s_{h}"):
                         if pn: db = get_connection(); db.execute("INSERT INTO agendamientos (fecha, medico, hora, paciente, telefono) VALUES (?,?,?,?,?)", (str(ag_f), ag_m, h, pn, pt)); db.commit(); db.close(); st.rerun()
 
@@ -322,7 +334,7 @@ def bloque_recepcion():
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
-# --- 8. CALLBACK DE INGRESO MÉDICO ---
+# --- 9. CALLBACK DE INGRESO MÉDICO ---
 def ejecutar_ingreso_medico(usr, ced):
     if usr != "Seleccione Médico..." and ced:
         conn = sqlite3.connect('club_leones_centro_medico.db')
@@ -338,7 +350,7 @@ def ejecutar_ingreso_medico(usr, ced):
             st.session_state.med_acceso_concedido = False
             st.sidebar.error("❌ Credenciales inválidas.")
 
-# --- 9. BLOQUE MÉDICOS ---
+# --- 10. BLOQUE MÉDICOS ---
 def bloque_medicos():
     st.markdown("## 🥼 INTERFAZ DE HISTORIAS CLÍNICAS")
     st.markdown("### 🔑 Validación de Firma Profesional")
@@ -467,13 +479,15 @@ def bloque_medicos():
                     st.error("❌ Complete los campos obligatorios antes de guardar (Nombre, Cédula, Diagnóstico y Tratamiento).")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 10. EJECUCIÓN NAVEGACIÓN GENERAL ---
+# --- 11. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
     login()
 else:
     st.sidebar.markdown("<br>", unsafe_allow_html=True)
-    try: st.sidebar.image("logo leones.jpg", width=120)
-    except: pass
+    try: 
+        st.sidebar.image("logo leones.jpg", width=120)
+    except: 
+        pass
     st.sidebar.markdown(f"👤 **{st.session_state.user_name}**")
     if st.sidebar.button("SALIR DEL SISTEMA"):
         st.session_state.autenticado = False
@@ -481,8 +495,6 @@ else:
         st.session_state.user_name = None
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
-        
-        # Forzar destrucción física del widget al alterar el control numérico de clave
         st.session_state.selector_control += 1
         st.rerun()
 
