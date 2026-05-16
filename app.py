@@ -102,6 +102,10 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
+# Clave de estado para forzar el reinicio vacío del selector de login
+if 'login_servicio_key' not in st.session_state:
+    st.session_state.login_servicio_key = "Seleccione un servicio..."
+
 # --- 5. LOGIN VERTICAL ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
@@ -116,13 +120,18 @@ def login():
         st.markdown("<p style='text-align: center; color: #d4af37; font-weight: bold; margin-bottom: 20px;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
-        b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
+        # CAMBIO DE TEXTO Y AGREGADO DE CONTROL DE ESTADO VACÍO
+        servicios_disponibles = ["Seleccione un servicio...", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
+        b_destino = st.selectbox("Elija el servicio al que desea ingresar", servicios_disponibles, key="login_servicio_key")
+        
         u_nombre = st.text_input("USUARIO")
         p_clave = st.text_input("CLAVE", type="password", autocomplete="new-password")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
-            if u_nombre == "CMLeones" and p_clave == "2468":
+            if b_destino == "Seleccione un servicio...":
+                st.error("⚠️ Por favor, seleccione un servicio válido de la lista.")
+            elif u_nombre == "CMLeones" and p_clave == "2468":
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
                 st.session_state.autenticado = True
@@ -286,7 +295,7 @@ def bloque_recepcion():
 def ejecutar_ingreso_medico(usr, ced):
     if usr != "Seleccione Médico..." and ced:
         conn = sqlite3.connect('club_leones_centro_medico.db')
-        es_valido = conn.execute("SELECT nombre FROM professionals WHERE nombre=? AND cedula=?", (usr, ced)).fetchone()
+        es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (usr, ced)).fetchone()
         conn.close()
         
         if es_valido or (usr == "CMLeones" and ced == "2468"):
@@ -322,31 +331,25 @@ def bloque_medicos():
         st.info(f"👨‍⚕️ Profesional Activo: {medico_activo}")
         st.divider()
         
-        # --- SOLUCIÓN REQUERIDA: SECCIÓN EXTERNA PARA PASAR LA CÉDULA ---
         st.markdown("### 🔍 CONSULTAR ANTECEDENTES")
         buscar_cedula = st.text_input("INGRESE LA CÉDULA DEL PACIENTE PARA CARGAR HISTORIAS CLÍNICAS ANTERIORES")
         
-        # Consultar la Base de Datos para verificar si este paciente ya posee registros clínicos previos
         df_anteriores = pd.DataFrame()
         if buscar_cedula:
             conn = get_connection()
             df_anteriores = pd.read_sql(f"SELECT fecha_registro, medico, motivo_consulta, signos_vitales, antecedentes, examen_fisico, diagnostico, evolucion FROM historias_clinicas WHERE paciente_cedula='{buscar_cedula}' ORDER BY fecha_registro DESC", conn)
             conn.close()
 
-        # --- HOJA MODELO DE HISTORIA CLÍNICA (SIEMPRE VISIBLE Y VACÍA PARA LLENADO) ---
         st.markdown("<div class='hoja-clinica'>", unsafe_allow_html=True)
         st.subheader("📝 HOJA MODELO DE HISTORIA CLÍNICA (ESTÁNDAR)")
         
-        # --- DESPLEGABLE DE FECHAS UBICADO EXACTAMENTE DEBAJO DEL TÍTULO SOLICITADO ---
         if not df_anteriores.empty:
             fechas_disponibles = list(df_anteriores['fecha_registro'])
             fecha_sel = st.selectbox("📅 SELECCIONE LA FECHA DE LA HISTORIA CLÍNICA ANTERIOR PARA REVISAR DATOS:", ["Elija una fecha pasará a cargar los datos..."] + fechas_disponibles)
             
             if fecha_sel != "Elija un fecha pasará a cargar los datos...":
-                # Extraer la fila correspondiente a la fecha cliqueada
                 registro_pasado = df_anteriores[df_anteriores['fecha_registro'] == fecha_sel].iloc[0]
                 
-                # Desplegar los datos anteriores en un bloque informativo estético de revisión
                 st.info(f"""
                 ⏱️ **HISTORIAL CLÍNICO DEL {fecha_sel}** (Atendido por: {registro_pasado['medico']})
                 * **Motivo de Consulta:** {registro_pasado['motivo_consulta']}
@@ -404,7 +407,6 @@ def bloque_medicos():
                     antecedentes_compuesto = f"Personales: {ant_personales} \nFamiliares: {ant_familiares}"
                     
                     conn = get_connection()
-                    # CONTROL ANTI-DUPLICADOS LÓGICO COMPLETO
                     ultimo_guardado = conn.execute(
                         "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente_cedula=? ORDER BY id DESC LIMIT 1", 
                         (p_cedula_input,)
@@ -444,6 +446,8 @@ else:
         st.session_state.user_name = None
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
+        # REINICIO SEGURO AL ESTADO VACÍO POR DEFECTO DEL SELECTBOX AL SALIR
+        st.session_state.login_servicio_key = "Seleccione un servicio..."
         st.rerun()
 
     st.sidebar.divider()
