@@ -74,8 +74,6 @@ if 'autenticado' not in st.session_state:
 
 # --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
 def login():
-    st.markdown("<br>", unsafe_allow_html=True)
-    
     # Formato rígido de 3 columnas para evitar que los campos se deformen de lado a lado
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
     
