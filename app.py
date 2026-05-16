@@ -7,7 +7,7 @@ import time
 # --- 1. CONFIGURACIÓN DE PÁGINA (ADN DE TUS APPS ANTERIORES) ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="🦁", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. DISEÑO VISUAL VERTICAL COMPACTO (FOTO 1 ORIGINAL SIN CUADRO AZUL) ---
+# --- 2. DISEÑO VISUAL VERTICAL COMPACTO (TODO EN UNA SOLA PÁGINA) ---
 st.markdown(
     """
     <style>
@@ -75,14 +75,14 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# --- 5. LOGIN VERTICAL INTEGRADO (TODO EN UNA PÁGINA) ---
+# --- 5. LOGIN VERTICAL INTEGRADO (FOTO ORIGINAL REPARADA) ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Contenedor de la tarjeta central vertical (Como en tu formato preferido)
+    # Contenedor de la tarjeta central vertical
     st.markdown("<div class='card-login'>", unsafe_allow_html=True)
     
-    # El logo va dentro de la tarjeta arriba de los campos, con tamaño controlado para que no píxele
+    # El logo va dentro de la tarjeta arriba de los campos sin cuadros externos de internet
     col_l1, col_l2, col_l3 = st.columns([1, 1.8, 1])
     with col_l2:
         try: 
@@ -94,7 +94,7 @@ def login():
     st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
     st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
     
-    # Campos de interacción directa
+    # Campos de interacción y enrutamiento inteligente
     b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
     u_nombre = st.text_input("USUARIO")
     p_clave = st.text_input("CLAVE", type="password")
@@ -170,7 +170,7 @@ def bloque_administracion():
                         if del_id != "Seleccione...":
                             db = get_connection(); db.execute("DELETE FROM profesionales WHERE id=?", (del_id,)); db.commit(); db.close(); st.rerun()
 
-# --- 7. BLOQUE RECEPCIÓN ---
+# --- 7. BLOQUE RECEPCIÓN (REPARADO Y SIN ERRORES DE INDENTACIÓN) ---
 def bloque_recepcion():
     st.title("🛎️ RECEPCIÓN")
     m = st.sidebar.radio("MENÚ", ["CAJA DIARIA", "AGENDAMIENTOS", "VISUALIZAR/EDITAR CONSULTAS"])
@@ -208,4 +208,57 @@ def bloque_recepcion():
                 col_h.write(f"🕒 {h}")
                 if res:
                     col_p.info(f"{res[0]}"); col_t.write(res[1])
-                    if col_b.button("Borrar", key=f"d_{h}"):
+                    if col_b.button("Borrar", key=f"d_{h}"): 
+                        db = get_connection(); db.execute("DELETE FROM agendamientos WHERE fecha=? AND medico=? AND hora=?", (str(ag_f), ag_m, h)); db.commit(); db.close(); st.rerun()
+                else:
+                    pn = col_p.text_input("Paciente", key=f"p_{h}", label_visibility="collapsed", placeholder="Nombre...")
+                    pt = col_t.text_input("Teléfono", key=f"t_{h}", label_visibility="collapsed", placeholder="Teléfono...")
+                    if col_b.button("💾", key=f"s_{h}"):
+                        if pn: db = get_connection(); db.execute("INSERT INTO agendamientos (fecha, medico, hora, paciente, telefono) VALUES (?,?,?,?,?)", (str(ag_f), ag_m, h, pn, pt)); db.commit(); db.close(); st.rerun()
+
+    elif m == "VISUALIZAR/EDITAR CONSULTAS":
+        st.markdown("### 🔎 CONSULTAS")
+        f_v = st.date_input("Filtrar por fecha")
+        df = pd.read_sql(f"SELECT * FROM consultas WHERE fecha='{str(f_v)}' ORDER BY medico", get_connection())
+        if not df.empty:
+            for med in df['medico'].unique():
+                st.markdown(f"#### 🩺 {med}")
+                sub = df[df['medico'] == med]
+                for _, r in sub.iterrows():
+                    with st.expander(f"👤 {r['paciente']} | Total: ${r['total']:.2f}"):
+                        st.write(f"Forma de Pago: {r['forma_pago']} | Cédula: {r['cedula']}")
+                        st.table(pd.DataFrame({"Concepto": ["Consulta", "Proc.", "Inyec.", "Certif."], "Valor": [f"${r['v_consulta']}", f"${r['v_proc']}", f"${r['v_inyec']}", f"${r['v_cert']}"]}))
+                        
+                        with st.form(f"edit_form_{r['id']}"):
+                            st.write("*Formulario de Modificación de Datos*")
+                            new_p = st.selectbox("Nueva Forma de Pago", ["Efectivo", "Transferencia", "Pago Plux", "Deuna", "DataFast"], index=["Efectivo", "Transferencia", "Pago Plux", "Deuna", "DataFast"].index(r['forma_pago']))
+                            new_vc = st.number_input("Consulta", value=r['v_consulta'])
+                            new_vp = st.number_input("Procedimiento", value=r['v_proc'])
+                            new_vi = st.number_input("Inyección", value=r['v_inyec'])
+                            new_vce = st.number_input("Certificado", value=r['v_cert'])
+                            new_obs = st.text_area("Observaciones", value=r['observaciones'])
+                            new_tot = new_vc + new_vp + new_vi + new_vce
+                            
+                            c_b1, c_b2 = st.columns(2)
+                            if c_b1.form_submit_button("ACTUALIZAR DATOS"):
+                                db = get_connection(); db.execute("UPDATE consultas SET forma_pago=?, v_consulta=?, v_proc=?, v_inyec=?, v_cert=?, total=?, observaciones=? WHERE id=?", (new_p, new_vc, new_vp, new_vi, new_vce, new_tot, new_obs, r['id'])); db.commit(); db.close(); st.success("Actualizado"); time.sleep(0.5); st.rerun()
+                            if c_b2.form_submit_button("ELIMINAR REGISTRO"):
+                                db = get_connection(); db.execute("DELETE FROM consultas WHERE id=?", (r['id'],)); db.commit(); db.close(); st.warning("Eliminado"); time.sleep(0.5); st.rerun()
+                st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
+        else: st.info("No hay registros en la fecha seleccionada.")
+
+# --- 8. EJECUCIÓN NAVEGACIÓN GENERAL ---
+if not st.session_state.autenticado:
+    login()
+else:
+    st.sidebar.markdown("<br>", unsafe_allow_html=True)
+    try: st.sidebar.image("logo leones.jpg", width=120)
+    except: pass
+    st.sidebar.markdown(f"👤 **{st.session_state.user_name}**")
+    if st.sidebar.button("SALIR DEL SISTEMA"):
+        st.session_state.autenticado = False; st.rerun()
+
+    if st.session_state.user_role == "ADMINISTRACION":
+        bloque_administracion()
+    elif st.session_state.user_role == "RECEPCION":
+        bloque_recepcion()
