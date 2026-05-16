@@ -3,7 +3,6 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 import time
-import hashlib
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="logo leones.jpg", layout="wide", initial_sidebar_state="collapsed")
@@ -63,10 +62,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS agendamientos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, medico TEXT, hora TEXT, 
                   paciente TEXT, telefono TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, 
-                  paciente TEXT, cedula_paciente TEXT, motivo_consulta TEXT, diagnostico TEXT, 
-                  evolucion_tratamiento TEXT, hash_control TEXT)''')
     conn.commit(); conn.close()
 
 init_db()
@@ -74,14 +69,13 @@ init_db()
 # --- 4. GESTIÓN DE ESTADO DE SESIÓN ---
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
-if 'user_role' not in st.session_state:
     st.session_state.user_role = None
-if 'user_name' not in st.session_state:
     st.session_state.user_name = None
 
 # --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
+    
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
     
     with col_centro:
@@ -96,17 +90,17 @@ def login():
         st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
+        # Inputs de Login
         b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
         u_nombre = st.text_input("USUARIO")
         p_clave = st.text_input("CLAVE", type="password")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
-            # CLAVE MAESTRA UNIVERSAL TEMPORAL (Acceso prioritario directo)
             if u_nombre == "CMLeones" and p_clave == "2468":
+                st.session_state.autenticado = True
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
-                st.session_state.autenticado = True
                 st.rerun()
             else:
                 conn = get_connection()
@@ -114,18 +108,19 @@ def login():
                                    (u_nombre, p_clave, b_destino)).fetchone()
                 conn.close()
                 if res:
-                    st.session_state.user_role = res[1]
-                    st.session_state.user_name = res[0]
                     st.session_state.autenticado = True
+                    st.session_state.user_name = res[0]
+                    st.session_state.user_role = res[1]
                     st.rerun()
                 else:
                     st.error("⚠️ Credenciales incorrectas para este bloque.")
                     
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 6. BLOQUE ADMINISTRACIÓN ---
+# --- 6. BLOQUE ADMINISTRACIÓN (MENÚ SIEMPRE VISIBLE CON RADIO BUTTONS) ---
 def bloque_administracion():
     st.title("⚙️ ADMINISTRACIÓN GENERAL")
+    # Cambiado st.sidebar.selectbox por st.sidebar.radio para que quede igual al de recepción
     menu = st.sidebar.radio("MENÚ", ["GESTIÓN DE PERMISOS", "GESTIÓN PROFESIONALES", "BASE DE DATOS PACIENTES", "LIQUIDACIÓN MENSUAL"])
 
     if menu == "GESTIÓN DE PERMISOS":
@@ -257,92 +252,7 @@ def bloque_recepcion():
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
-# --- 8. BLOQUE MÉDICOS ---
-def bloque_medicos():
-    st.title("🥼 MÓDULO DE PROFESIONALES MÉDICOS")
-    st.markdown("### 🔑 Validación de Firma Profesional")
-    
-    c1, c2 = st.columns(2)
-    m_nombre = c1.text_input("NOMBRE COMPLETO DEL MÉDICO", placeholder="Ej: Dr. Juan Pérez")
-    m_cedula = c2.text_input("NÚMERO DE CÉDULA MÉDICA", type="password", placeholder="Digite su documento...")
-
-    if m_nombre and m_cedula:
-        conn = get_connection()
-        es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (m_nombre, m_cedula)).fetchone()
-        
-        if es_valido or st.session_state.user_name == "Administrador Maestro":
-            st.success(f"🔓 Acceso Autorizado: {m_nombre if m_nombre else 'Admin Master'}")
-            st.divider()
-            
-            st.markdown("### 📋 Listado de Pacientes Atendidos por Fecha")
-            query_busca = f"SELECT fecha, paciente, cedula, observaciones FROM consultas WHERE medico='{m_nombre}' ORDER BY fecha DESC" if st.session_state.user_name != "Administrador Maestro" else "SELECT fecha, paciente, cedula, observaciones FROM consultas ORDER BY fecha DESC"
-            df_pacientes = pd.read_sql(query_busca, conn)
-            conn.close()
-            
-            if not df_pacientes.empty:
-                opciones_pacientes = []
-                for idx, row in df_pacientes.iterrows():
-                    opciones_pacientes.append(f"📅 {row['fecha']} | Paciente: {row['paciente']} (CI: {row['cedula']})")
-                
-                p_seleccionado = st.selectbox("Seleccione el paciente para abrir Historia Clínica", ["Elija un paciente..."] + opciones_pacientes)
-                
-                if p_seleccionado != "Elija un paciente...":
-                    idx_sel = opciones_pacientes.index(p_seleccionado)
-                    datos_paciente = df_pacientes.iloc[idx_sel]
-                    
-                    st.markdown(f"## 🩺 Historia Clínica: {datos_paciente['paciente']}")
-                    
-                    conn = get_connection()
-                    historial_previo = pd.read_sql(f"SELECT fecha_registro, motivo_consulta, diagnostico, evolucion_tratamiento FROM historias_clinicas WHERE paciente='{datos_paciente['paciente']}' ORDER BY id DESC", conn)
-                    conn.close()
-                    
-                    if not historial_previo.empty:
-                        st.markdown("##### 📜 Historial de Evoluciones Anteriores")
-                        for _, hist in historial_previo.iterrows():
-                            with st.expander(f"⏱️ Registro del {hist['fecha_registro']}"):
-                                st.write(f"**Motivo:** {hist['motivo_consulta']}")
-                                st.write(f"**Diagnóstico:** {hist['diagnostico']}")
-                                st.write(f"**Evolución:** {hist['evolucion_tratamiento']}")
-                    else:
-                        st.info("ℹ️ Este paciente no registra historias clínicas anteriores.")
-                    
-                    st.markdown("### ✏️ Registrar Nueva Evolución/Consulta")
-                    with st.form("form_comp_historia", clear_on_submit=False):
-                        motivo = st.text_input("Motivo de la Consulta Actual", value=datos_paciente['observaciones'])
-                        diagnostico = st.text_area("Diagnóstico Médico Presuntivo/Definitivo")
-                        evolucion = st.text_area("Evolución, Tratamiento e Indicaciones Médicas")
-                        
-                        cadena_hash = f"{m_nombre}-{datos_paciente['paciente']}-{motivo}-{diagnostico}-{evolucion}"
-                        hash_detectado = hashlib.md5(cadena_hash.encode('utf-8')).hexdigest()
-                        
-                        if st.form_submit_button("GUARDAR HISTORIA CLÍNICA"):
-                            if diagnostico and evolucion:
-                                conn = get_connection()
-                                existe_duplicado = conn.execute("SELECT id FROM historias_clinicas WHERE hash_control=?", (hash_detectado,)).fetchone()
-                                
-                                if existe_duplicado:
-                                    st.warning("⚠️ El registro ya fue guardado. No se duplicaron datos.")
-                                    conn.close()
-                                else:
-                                    f_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    conn.execute('''INSERT INTO historias_clinicas 
-                                                    (fecha_registro, medico, paciente, cedula_paciente, motivo_consulta, diagnostico, evolucion_tratamiento, hash_control) 
-                                                    VALUES (?,?,?,?,?,?,?,?)''', 
-                                                 (f_actual, m_nombre, datos_paciente['paciente'], datos_paciente['cedula'], motivo, diagnostico, evolucion, hash_detectado))
-                                    conn.commit()
-                                    conn.close()
-                                    st.success("✅ Historia Clínica guardada correctamente.")
-                                    time.sleep(1)
-                                    st.rerun()
-                            else:
-                                st.error("❌ Complete Diagnóstico y Evolución antes de guardar.")
-            else:
-                st.info("No se registran atenciones médicas agendadas para este nombre.")
-                conn.close()
-        else:
-            st.error("❌ Credenciales de validación médica incorrectas.")
-
-# --- 9. CONFIGURACIÓN DEL SISTEMA DE NAVEGACIÓN GENERAL (FLUJO DIRECTO) ---
+# --- 8. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
     login()
 else:
@@ -357,14 +267,13 @@ else:
         st.rerun()
 
     st.sidebar.divider()
-    
-    # Renderizado directo de bloques según el rol asignado en el login
     if st.session_state.user_role == "ADMINISTRACION":
         bloque_administracion()
     elif st.session_state.user_role == "RECEPCION":
         bloque_recepcion()
     elif st.session_state.user_role == "MEDICOS":
-        bloque_medicos()
+        st.title("🥼 BLOQUE MEDICOS")
+        st.info("Bloque en construcción (Historias Clínicas).")
     elif st.session_state.user_role == "CONTABILIDAD":
         st.title("💰 BLOQUE CONTABILIDAD")
         st.info("Bloque en construcción.")
