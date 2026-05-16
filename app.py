@@ -41,6 +41,23 @@ st.markdown(
     /* Forzar alineación de inputs */
     .stTextInput>div, .stSelectbox>div { margin-bottom: -15px; }
     .total-box { background-color: #f1f3f5; color: #003366; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 1.1em; font-weight: bold; margin-top: 10px; }
+    
+    /* Contenedor estético para la Hoja Modelo de Historia Clínica */
+    .hoja-clinica {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        margin-top: 15px;
+    }
+    .seccion-clinica {
+        color: #003366;
+        font-weight: bold;
+        border-bottom: 2px solid #d4af37;
+        margin-top: 15px;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+    }
     </style>
     """, unsafe_allow_html=True
 )
@@ -62,9 +79,11 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS agendamientos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, medico TEXT, hora TEXT, 
                   paciente TEXT, telefono TEXT)''')
+    # Actualización de la tabla para soportar la estructura de la Hoja Modelo
     c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, 
-                  paciente TEXT, motivo_consulta TEXT, diagnostico TEXT, evolucion TEXT)''')
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, paciente TEXT, 
+                  motivo_consulta TEXT, signos_vitales TEXT, antecedentes TEXT, examen_fisico TEXT, 
+                  diagnostico TEXT, evolucion TEXT)''')
     conn.commit(); conn.close()
 
 init_db()
@@ -77,13 +96,11 @@ if 'user_role' not in st.session_state:
 if 'user_name' not in st.session_state:
     st.session_state.user_name = None
 
-# Estados específicos para el Bloque Médicos
 if 'med_acceso_concedido' not in st.session_state:
     st.session_state.med_acceso_concedido = False
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
-# Inicialización de llaves de los inputs para permitir su borrado total
 if 'input_med_usuario' not in st.session_state:
     st.session_state.input_med_usuario = "Seleccione Médico..."
 if 'input_med_cedula' not in st.session_state:
@@ -96,11 +113,8 @@ def login():
     
     with col_centro:
         st.markdown("<div class='card-login'>", unsafe_allow_html=True)
-        
-        try: 
-            st.image("logo leones.jpg", use_container_width=True)
-        except: 
-            pass
+        try: st.image("logo leones.jpg", use_container_width=True)
+        except: pass
             
         st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #d4af37; font-weight: bold; margin-bottom: 20px;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
@@ -129,7 +143,6 @@ def login():
                     st.rerun()
                 else:
                     st.error("⚠️ Credenciales incorrectas para este bloque.")
-                    
         st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 6. BLOQUE ADMINISTRACIÓN ---
@@ -278,7 +291,6 @@ def bloque_medicos():
     opciones_medicos = ["Seleccione Médico..."] + ["CMLeones"] + medicos_registrados
     
     c_m1, c_m2 = st.columns(2)
-    # Vinculados estrictamente a session_state mediante 'key' para posibilitar el borrado total
     doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="input_med_usuario")
     doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="new-password", key="input_med_cedula")
     
@@ -294,7 +306,6 @@ def bloque_medicos():
                 st.session_state.med_acceso_concedido = True
                 st.session_state.med_nombre_guardado = doc_usuario
                 
-                # ARQUITECTURA EXPERTA: Borrado absoluto e instantáneo de los campos de credenciales de la pantalla
                 st.session_state.input_med_usuario = "Seleccione Médico..."
                 st.session_state.input_med_cedula = ""
                 st.rerun()
@@ -335,22 +346,52 @@ def bloque_medicos():
                 if not df_hist_previo.empty:
                     st.markdown("##### 📜 Historial Clínico Anterior")
                     for _, h_row in df_hist_previo.iterrows():
-                        with st.expander(f"⏱️ Atendido el: {h_row['fecha_registro']} por {h_row['medico']}"):
-                            st.write(f"**Motivo de Consulta:** {h_row['motivo_consulta']}")
+                        with st.expander(f"⏱️ Registro Clínico del: {h_row['fecha_registro']} (Atendido por {h_row['medico']})"):
+                            st.write(f"**Motivo:** {h_row['motivo_consulta']}")
                             st.write(f"**Diagnóstico:** {h_row['diagnostico']}")
-                            st.write(f"**Evolución y Tratamiento:** {h_row['evolucion']}")
+                            st.write(f"**Evolución:** {h_row['evolucion']}")
                 else:
                     st.info("ℹ️ No existen registros clínicos anteriores para este paciente.")
                 
-                st.markdown("##### ✏️ Registrar Nueva Evolución")
+                # --- HOJA MODELO DE HISTORIA CLÍNICA INTEGRADA ---
+                st.markdown("<div class='hoja-clinica'>", unsafe_allow_html=True)
+                st.subheader("📝 HOJA MODELO DE HISTORIA CLÍNICA (ESTÁNDAR)")
+                
                 with st.form("nuevo_registro_clinico", clear_on_submit=False):
-                    motivo_act = st.text_input("Motivo de Consulta", value=row_sel['observaciones'])
-                    diag_act = st.text_area("Diagnóstico Actual")
-                    evol_act = st.text_area("Evolución y Tratamiento Actual")
+                    
+                    st.markdown("<div class='seccion-clinica'>1. MOTIVO DE CONSULTA Y ANAMNESIS</div>", unsafe_allow_html=True)
+                    motivo_act = st.text_input("Motivo de la Consulta Actual", value=row_sel['observaciones'])
+                    
+                    st.markdown("<div class='seccion-clinica'>2. SIGNOS VITALES</div>", unsafe_allow_html=True)
+                    col_sv1, col_sv2, col_sv3, col_sv4 = st.columns(4)
+                    pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80")
+                    fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72")
+                    fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16")
+                    temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5")
+                    
+                    st.markdown("<div class='seccion-clinica'>3. ANTECEDENTES PATOLÓGICOS</div>", unsafe_allow_html=True)
+                    ant_personales = st.text_area("Antecedentes Personales (Clínicos, Quirúrgicos, Alergias)", placeholder="Ninguno / Diabetes / Hipertensión...")
+                    ant_familiares = st.text_area("Antecedentes Familiares", placeholder="Cardiopatías, Cáncer, etc...")
+                    
+                    st.markdown("<div class='seccion-clinica'>4. EXAMEN FÍSICO COMENTADO</div>", unsafe_allow_html=True)
+                    examen_fisico_txt = st.text_area("Descripción del examen físico y exploración del paciente")
+                    
+                    st.markdown("<div class='seccion-clinica'>5. DIAGNÓSTICO PRESUNTIVO O DEFINITIVO (CIE-10)</div>", unsafe_allow_html=True)
+                    diag_act = st.text_area("Impresión Diagnóstica / Códigos CIE-10")
+                    
+                    st.markdown("<div class='seccion-clinica'>6. PLAN DE TRATAMIENTO Y EVOLUCIÓN</div>", unsafe_allow_html=True)
+                    evol_act = st.text_area("Prescripción de medicamentos, indicaciones y plan terapéutico")
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
                     
                     if st.form_submit_button("GUARDAR"):
                         if diag_act and evol_act:
+                            # Empaquetamos los bloques de la Hoja Modelo en strings formateados para la DB
+                            signos_vitales_compuesto = f"PA: {pa} | FC: {fc} | FR: {fr} | Temp: {temp}"
+                            antecedentes_compuesto = f"Personales: {ant_personales} \nFamiliares: {ant_familiares}"
+                            
                             conn = get_connection()
+                            # CONTROL ANTI-DUPLICADOS LÓGICO COMPLETO
                             ultimo_guardado = conn.execute(
                                 "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente=? ORDER BY id DESC LIMIT 1", 
                                 (paciente_nombre,)
@@ -362,16 +403,19 @@ def bloque_medicos():
                             else:
                                 f_reg = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                 conn.execute(
-                                    "INSERT INTO historias_clinicas (fecha_registro, medico, paciente, motivo_consulta, diagnostico, evolucion) VALUES (?,?,?,?,?,?)",
-                                    (f_reg, medico_activo, paciente_nombre, motivo_act, diag_act, evol_act)
+                                    """INSERT INTO historias_clinicas 
+                                       (fecha_registro, medico, paciente, motivo_consulta, signos_vitales, antecedentes, examen_fisico, diagnostico, evolucion) 
+                                       VALUES (?,?,?,?,?,?,?,?,?)""",
+                                    (f_reg, medico_activo, paciente_nombre, motivo_act, signos_vitales_compuesto, antecedentes_compuesto, examen_fisico_txt, diag_act, evol_act)
                                 )
                                 conn.commit()
                                 conn.close()
-                                st.success("✅ Datos clínicos almacenados correctamente.")
+                                st.success("✅ Datos clínicos de la Hoja Modelo almacenados correctamente.")
                                 time.sleep(0.5)
                                 st.rerun()
                         else:
-                            st.error("❌ Complete los campos de Diagnóstico y Evolución antes de guardar.")
+                            st.error("❌ Complete los campos obligatorios de Diagnóstico y Tratamiento antes de guardar.")
+                st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.info("No se registran pacientes asignados a este profesional en Caja Diaria.")
 
