@@ -102,7 +102,6 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
-# Clave de estado para forzar el reinicio vacío del selector de login
 if 'login_servicio_key' not in st.session_state:
     st.session_state.login_servicio_key = "Seleccione un servicio..."
 
@@ -120,12 +119,14 @@ def login():
         st.markdown("<p style='text-align: center; color: #d4af37; font-weight: bold; margin-bottom: 20px;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
-        # CAMBIO DE TEXTO Y AGREGADO DE CONTROL DE ESTADO VACÍO
         servicios_disponibles = ["Seleccione un servicio...", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox("Elija el servicio al que desea ingresar", servicios_disponibles, key="login_servicio_key")
         
-        u_nombre = st.text_input("USUARIO")
-        p_clave = st.text_input("CLAVE", type="password", autocomplete="new-password")
+        # Desactivar autocompletado en el nombre de usuario
+        u_nombre = st.text_input("USUARIO", autocomplete="off")
+        
+        # PROPIEDADES DIRECTAS EXCLUSIVAS ANTI-GUARDADO Y ANTI-RELLENO DE CONTRASEÑA
+        p_clave = st.text_input("CLAVE", type="password", autocomplete="off")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
@@ -159,7 +160,7 @@ def bloque_administracion():
         st.header("🛂 Control de Permisos")
         with st.form("f_per", clear_on_submit=True):
             c1, c2, c3 = st.columns(3)
-            n, c = c1.text_input("Nombre completo"), c2.text_input("Cédula (clave)")
+            n, c = c1.text_input("Nombre completo", autocomplete="off"), c2.text_input("Cédula (clave)", type="password", autocomplete="off")
             b = c3.selectbox("Asignar bloque", ["RECEPCION", "CONTABILIDAD", "MEDICOS"])
             if st.form_submit_button("Autorizar Acceso"):
                 if n and c:
@@ -178,8 +179,8 @@ def bloque_administracion():
             with col1:
                 with st.form("add_doc", clear_on_submit=True):
                     st.write("**Agregar Nuevo Médico**")
-                    n_doc = st.text_input("Nombre")
-                    c_doc = st.text_input("Cédula")
+                    n_doc = st.text_input("Nombre", autocomplete="off")
+                    c_doc = st.text_input("Cédula", type="password", autocomplete="off")
                     if st.form_submit_button("Guardar"):
                         if n_doc:
                             db = get_connection(); db.execute("INSERT INTO profesionales (nombre, cedula) VALUES (?,?)", (n_doc, c_doc)); db.commit(); db.close(); st.rerun()
@@ -187,7 +188,7 @@ def bloque_administracion():
                 with st.form("edit_doc"):
                     st.write("**Médico a corregir**")
                     sel_id = st.selectbox("Elegir ID", ["Seleccione..."] + list(df_p['id']))
-                    n_curr = st.text_input("Escriba el nombre correcto")
+                    n_curr = st.text_input("Escriba el nombre correcto", autocomplete="off")
                     if st.form_submit_button("Actualizar"):
                         if sel_id != "Seleccione..." and n_curr:
                             db = get_connection(); db.execute("UPDATE profesionales SET nombre=? WHERE id=?", (n_curr, sel_id)); db.commit(); db.close(); st.rerun()
@@ -226,11 +227,11 @@ def bloque_recepcion():
         f_f, f_p = c1.date_input("FECHA"), c2.selectbox("FORMA DE PAGO", ["Efectivo", "Transferencia", "Pago Plux", "Deuna", "DataFast"])
         med = c1.selectbox("Médico/Especialista", ["Seleccione Médico..."] + profes)
         vc = c2.number_input("Valor Consulta", value=0.0)
-        pac = c1.text_input("Nombre del Paciente")
+        pac = c1.text_input("Nombre del Paciente", autocomplete="off")
         vp = c2.number_input("Valor Procedimiento", value=0.0)
-        ced = c1.text_input("Cédula (Opcional)")
+        ced = c1.text_input("Cédula (Opcional)", autocomplete="off")
         vi = c2.number_input("Valor Inyección", value=0.0)
-        tel = c1.text_input("Teléfono (Opcional)")
+        tel = c1.text_input("Teléfono (Opcional)", autocomplete="off")
         vce = c2.number_input("Valor Certificado", value=0.0)
         obs = st.text_area("Observaciones")
         total = vc + vp + vi + vce
@@ -255,8 +256,8 @@ def bloque_recepcion():
                     if col_b.button("Borrar", key=f"d_{h}"): 
                         db = get_connection(); db.execute("DELETE FROM agendamientos WHERE fecha=? AND medico=? AND hora=?", (str(ag_f), ag_m, h)); db.commit(); db.close(); st.rerun()
                 else:
-                    pn = col_p.text_input("Paciente", key=f"p_{h}", label_visibility="collapsed", placeholder="Nombre...")
-                    pt = col_t.text_input("Teléfono", key=f"t_{h}", label_visibility="collapsed", placeholder="Teléfono...")
+                    pn = col_p.text_input("Paciente", key=f"p_{h}", label_visibility="collapsed", placeholder="Nombre...", autocomplete="off")
+                    pt = col_t.text_input("Teléfono", key=f"t_{h}", label_visibility="collapsed", placeholder="Teléfono...", autocomplete="off")
                     if col_b.button("💾", key=f"s_{h}"):
                         if pn: db = get_connection(); db.execute("INSERT INTO agendamientos (fecha, medico, hora, paciente, telefono) VALUES (?,?,?,?,?)", (str(ag_f), ag_m, h, pn, pt)); db.commit(); db.close(); st.rerun()
 
@@ -302,13 +303,14 @@ def ejecutar_ingreso_medico(usr, ced):
             st.session_state.med_acceso_concedido = True
             st.session_state.med_nombre_guardado = usr
             
+            # Limpieza instantánea de las llaves del estado
             st.session_state["val_usuario"] = "Seleccione Médico..."
             st.session_state["val_cedula"] = ""
         else:
             st.session_state.med_acceso_concedido = False
             st.sidebar.error("❌ Credenciales inválidas.")
 
-# --- 9. BLOQUE MÉDICOS ---
+# --- 9. BLOQUE MEDICOS ---
 def bloque_medicos():
     st.markdown("## 🥼 INTERFAZ DE HISTORIAS CLÍNICAS")
     st.markdown("### 🔑 Validación de Firma Profesional")
@@ -321,7 +323,9 @@ def bloque_medicos():
     
     c_m1, c_m2 = st.columns(2)
     doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="val_usuario")
-    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="new-password", key="val_cedula")
+    
+    # PROPIEDADES ANTI-GUARDADO EN EL BLOQUE INTERNO DE VALIDACIÓN MÉDICA
+    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="off", key="val_cedula")
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.button("INGRESO", on_click=ejecutar_ingreso_medico, args=(doc_usuario, doc_cedula))
@@ -332,7 +336,7 @@ def bloque_medicos():
         st.divider()
         
         st.markdown("### 🔍 CONSULTAR ANTECEDENTES")
-        buscar_cedula = st.text_input("INGRESE LA CÉDULA DEL PACIENTE PARA CARGAR HISTORIAS CLÍNICAS ANTERIORES")
+        buscar_cedula = st.text_input("INGRESE LA CÉDULA DEL PACIENTE PARA CARGAR HISTORIAS CLÍNICAS ANTERIORES", autocomplete="off")
         
         df_anteriores = pd.DataFrame()
         if buscar_cedula:
@@ -367,24 +371,24 @@ def bloque_medicos():
             
             st.markdown("<div class='seccion-clinica'>1. IDENTIFICACIÓN EXCLUSIVA DEL PACIENTE</div>", unsafe_allow_html=True)
             col_id1, col_id2, col_id3 = st.columns(3)
-            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE")
-            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula)
-            p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE")
+            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE", autocomplete="off")
+            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula, autocomplete="off")
+            p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE", autocomplete="off")
             
-            st.markdown("<div class='seccion-clinica'>2. CONTACTO DE EMERGENCIA DEL PACIENTE</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>2. CONTACTO DE EMERGENCY DEL PACIENTE</div>", unsafe_allow_html=True)
             col_em1, col_em2 = st.columns(2)
-            p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA")
-            p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA")
+            p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA", autocomplete="off")
+            p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>3. MOTIVO DE CONSULTA Y ANAMNESIS</div>", unsafe_allow_html=True)
-            motivo_act = st.text_input("Motivo de la Consulta Actual")
+            motivo_act = st.text_input("Motivo de la Consulta Actual", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>4. SIGNOS VITALES</div>", unsafe_allow_html=True)
             col_sv1, col_sv2, col_sv3, col_sv4 = st.columns(4)
-            pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80")
-            fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72")
-            fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16")
-            temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5")
+            pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80", autocomplete="off")
+            fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72", autocomplete="off")
+            fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16", autocomplete="off")
+            temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>5. ANTECEDENTES PATOLÓGICOS</div>", unsafe_allow_html=True)
             ant_personales = st.text_area("Antecedentes Personales (Clínicos, Quirúrgicos, Alergias)", placeholder="Ninguno / Diabetes / Hipertensión...")
@@ -446,7 +450,6 @@ else:
         st.session_state.user_name = None
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
-        # REINICIO SEGURO AL ESTADO VACÍO POR DEFECTO DEL SELECTBOX AL SALIR
         st.session_state.login_servicio_key = "Seleccione un servicio..."
         st.rerun()
 
