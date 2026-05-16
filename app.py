@@ -162,7 +162,7 @@ def login():
 # --- 6. BLOQUE ADMINISTRACIÓN ---
 def bloque_administracion():
     st.title("⚙️ ADMINISTRACIÓN GENERAL")
-    menu = st.sidebar.radio("MENÚ", ["GESTIÓN DE PERMISOS", "GESTIÓN PROFESIONALES", "BASE DE DATOS PACIENTES", "HISTORIAS CLÍNICAS AUDITORÍA", "LIQUIDACIÓN MENSUAL"])
+    menu = st.sidebar.radio("MENÚ", ["GESTIÓN DE PERMISOS", "GESTIÓN PROFESIONALES", "BASE DE DATOS PACIENTES", "LIQUIDACIÓN MENSUAL"])
 
     if menu == "GESTIÓN DE PERMISOS":
         st.header("🛂 Control de Permisos")
@@ -208,37 +208,30 @@ def bloque_administracion():
                         if del_id != "Seleccione...":
                             db = get_connection(); db.execute("DELETE FROM profesionales WHERE id=?", (del_id,)); db.commit(); db.close(); st.rerun()
 
+    # --- FUSIÓN ABSOLUTA: BASE DE DATOS PACIENTES + AUDITORÍA EN UN SOLO LUGAR ---
     elif menu == "BASE DE DATOS PACIENTES":
-        st.header("🗄️ Base de Datos Pacientes")
-        try:
-            df_hist_global = pd.read_sql("SELECT fecha_registro as 'Fecha Registro', paciente_nombre as 'Paciente', paciente_cedula as 'Cédula', paciente_telefono as 'Teléfono', medico as 'Médico', diagnostico as 'Diagnóstico CIE-10' FROM historias_clinicas ORDER BY fecha_registro DESC", get_connection())
-            if not df_hist_global.empty:
-                st.dataframe(df_hist_global, use_container_width=True, hide_index=True)
-            else:
-                st.info("No hay pacientes registrados en el historial clínico aún.")
-        except:
-            st.info("La base de datos de pacientes se poblará al guardar la primera historia clínica.")
-
-    # --- MÓDULO HISTORIAS CLÍNICAS AUDITORÍA ---
-    elif menu == "HISTORIAS CLÍNICAS AUDITORÍA":
-        st.header("📋 Auditoría y Control de Historias Clínicas")
+        st.header("🗄️ Fichas e Historias Clínicas de Pacientes")
         st.markdown("---")
         
         conn = get_connection()
+        # Se listan incondicionalmente todos los profesionales registrados en el sistema
         medicos_db = [r[0] for r in conn.execute("SELECT nombre FROM profesionales ORDER BY nombre").fetchall()]
         opciones_medicos_auditoria = ["CMLeones"] + medicos_db
         
-        medico_sel = st.selectbox("💡 Seleccione el Médico Especialista para auditar:", ["Seleccione Médico..."] + opciones_medicos_auditoria)
+        # El campo para desplegar los médicos siempre aparece primero
+        medico_sel = st.selectbox("🩺 Seleccione el Médico Especialista para ver sus pacientes:", ["Seleccione Médico..."] + opciones_medicos_auditoria)
         
         if medico_sel != "Seleccione Médico...":
+            # Buscamos qué pacientes han sido atendidos por el médico elegido
             pacientes_db = [r[0] for r in conn.execute("SELECT DISTINCT paciente_nombre FROM historias_clinicas WHERE medico=? ORDER BY paciente_nombre", (medico_sel,)).fetchall()]
             
             if not pacientes_db:
-                st.warning(f"ℹ️ El profesional '{medico_sel}' está registrado en el sistema, pero no posee historias clínicas almacenadas actualmente.")
+                st.warning(f"ℹ️ El profesional '{medico_sel}' está registrado, pero no posee historias clínicas almacenadas en la base de datos actualmente.")
             else:
                 paciente_sel = st.selectbox("👤 Seleccione el Paciente:", ["Seleccione Paciente..."] + pacientes_db)
                 
                 if paciente_sel != "Seleccione Paciente...":
+                    # Cargamos el listado de fechas de atención del paciente elegido
                     fechas_db = [r[0] for r in conn.execute("SELECT fecha_registro FROM historias_clinicas WHERE medico=? AND paciente_nombre=? ORDER BY fecha_registro DESC", (medico_sel, paciente_sel)).fetchall()]
                     
                     fechas_sel = st.multiselect("📅 Seleccione la o las Fechas de Atención a consultar:", fechas_db)
