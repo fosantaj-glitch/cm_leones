@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import datetime
-import time
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="logo leones.jpg", layout="wide", initial_sidebar_state="collapsed")
@@ -102,7 +101,7 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
-# Fábrica de ciclo de vida del login para forzar renderizado limpio absoluto
+# Generador de llave única para re-renderizado total y limpio del selector
 if 'selector_control' not in st.session_state:
     st.session_state.selector_control = 0
 
@@ -122,7 +121,6 @@ def login():
         st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
-        # El identificador dinámico de clave (key) obliga al sistema a iniciar vacío (" ") siempre que se reinicie
         servicios_disponibles = [" ", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox(
             "Elija el servicio al que desea ingresar", 
@@ -131,24 +129,14 @@ def login():
             key=f"widget_servicio_{st.session_state.selector_control}"
         )
         
-        # RENDERIZADO CONDICIONAL ESTRICTO DE INTERFAZ LIMPIA
+        # RENDERIZADO CONDICIONAL NETO: Si está vacío, no se instancia ningún elemento visual intermedio
         if b_destino == " ":
             st.info("Por favor, seleccione un servicio arriba para desplegar los campos de acceso.")
             u_nombre, p_clave = "", ""
         else:
-            # Inputs señuelo ocultos para absorber la inyección automática del navegador
-            st.markdown(
-                """
-                <div style="display:none;">
-                    <input type="text" name="usr_fake_trap" autocomplete="on">
-                    <input type="password" name="pwd_fake_trap" autocomplete="on">
-                </div>
-                """, unsafe_allow_html=True
-            )
-            
+            # Campos puros, estables y sin parches intermedios de HTML o inputs ocultos
             u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key=f"usr_real_{st.session_state.selector_control}")
             
-            # Las columnas del ojo solo se instancian si b_destino NO es el espacio vacío, eliminando los iconos fantasma
             col_pass, col_ojo = st.columns([6, 1])
             ver_clave = col_ojo.checkbox("👁️", key=f"ojo_real_{st.session_state.selector_control}", help="Mostrar/Ocultar Clave")
             tipo_input = "default" if ver_clave else "password"
@@ -483,7 +471,7 @@ else:
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
         
-        # EL QUIRÓFANO DE LIMPIEZA: Forzamos la destrucción absoluta de la identidad del widget antiguo
+        # Mutamos el control del selector de llaves numéricas: destruye el anterior por completo en el navegador
         st.session_state.selector_control += 1
         st.rerun()
 
