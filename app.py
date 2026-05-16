@@ -79,7 +79,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS agendamientos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, medico TEXT, hora TEXT, 
                   paciente TEXT, telefono TEXT)''')
-    # Tabla estructurada con las nuevas columnas de contacto telefónico y de emergencia
     c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, 
                   paciente_nombre TEXT, paciente_cedula TEXT, paciente_telefono TEXT,
@@ -287,14 +286,13 @@ def bloque_recepcion():
 def ejecutar_ingreso_medico(usr, ced):
     if usr != "Seleccione Médico..." and ced:
         conn = sqlite3.connect('club_leones_centro_medico.db')
-        es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (usr, ced)).fetchone()
+        es_valido = conn.execute("SELECT nombre FROM professionals WHERE nombre=? AND cedula=?", (usr, ced)).fetchone()
         conn.close()
         
         if es_valido or (usr == "CMLeones" and ced == "2468"):
             st.session_state.med_acceso_concedido = True
             st.session_state.med_nombre_guardado = usr
             
-            # Limpieza instantánea de los campos de firma al presionar INGRESO
             st.session_state["val_usuario"] = "Seleccione Médico..."
             st.session_state["val_cedula"] = ""
         else:
@@ -324,16 +322,50 @@ def bloque_medicos():
         st.info(f"👨‍⚕️ Profesional Activo: {medico_activo}")
         st.divider()
         
+        # --- SOLUCIÓN REQUERIDA: SECCIÓN EXTERNA PARA PASAR LA CÉDULA ---
+        st.markdown("### 🔍 CONSULTAR ANTECEDENTES")
+        buscar_cedula = st.text_input("INGRESE LA CÉDULA DEL PACIENTE PARA CARGAR HISTORIAS CLÍNICAS ANTERIORES")
+        
+        # Consultar la Base de Datos para verificar si este paciente ya posee registros clínicos previos
+        df_anteriores = pd.DataFrame()
+        if buscar_cedula:
+            conn = get_connection()
+            df_anteriores = pd.read_sql(f"SELECT fecha_registro, medico, motivo_consulta, signos_vitales, antecedentes, examen_fisico, diagnostico, evolucion FROM historias_clinicas WHERE paciente_cedula='{buscar_cedula}' ORDER BY fecha_registro DESC", conn)
+            conn.close()
+
         # --- HOJA MODELO DE HISTORIA CLÍNICA (SIEMPRE VISIBLE Y VACÍA PARA LLENADO) ---
         st.markdown("<div class='hoja-clinica'>", unsafe_allow_html=True)
         st.subheader("📝 HOJA MODELO DE HISTORIA CLÍNICA (ESTÁNDAR)")
         
+        # --- DESPLEGABLE DE FECHAS UBICADO EXACTAMENTE DEBAJO DEL TÍTULO SOLICITADO ---
+        if not df_anteriores.empty:
+            fechas_disponibles = list(df_anteriores['fecha_registro'])
+            fecha_sel = st.selectbox("📅 SELECCIONE LA FECHA DE LA HISTORIA CLÍNICA ANTERIOR PARA REVISAR DATOS:", ["Elija una fecha pasará a cargar los datos..."] + fechas_disponibles)
+            
+            if fecha_sel != "Elija un fecha pasará a cargar los datos...":
+                # Extraer la fila correspondiente a la fecha cliqueada
+                registro_pasado = df_anteriores[df_anteriores['fecha_registro'] == fecha_sel].iloc[0]
+                
+                # Desplegar los datos anteriores en un bloque informativo estético de revisión
+                st.info(f"""
+                ⏱️ **HISTORIAL CLÍNICO DEL {fecha_sel}** (Atendido por: {registro_pasado['medico']})
+                * **Motivo de Consulta:** {registro_pasado['motivo_consulta']}
+                * **Signos Vitales:** {registro_pasado['signos_vitales']}
+                * **Antecedentes:** {registro_pasado['antecedentes']}
+                * **Examen Físico:** {registro_pasado['examen_fisico']}
+                * **Diagnóstico (CIE-10):** {registro_pasado['diagnostico']}
+                * **Plan de Tratamiento / Evolución:** {registro_pasado['evolucion']}
+                """)
+        else:
+            if buscar_cedula:
+                st.caption("ℹ️ No se encontraron antecedentes médicos previos para el número de cédula ingresado.")
+
         with st.form("nuevo_registro_clinico", clear_on_submit=False):
             
             st.markdown("<div class='seccion-clinica'>1. IDENTIFICACIÓN EXCLUSIVA DEL PACIENTE</div>", unsafe_allow_html=True)
             col_id1, col_id2, col_id3 = st.columns(3)
             p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE")
-            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE")
+            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula)
             p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE")
             
             st.markdown("<div class='seccion-clinica'>2. CONTACTO DE EMERGENCIA DEL PACIENTE</div>", unsafe_allow_html=True)
@@ -372,7 +404,7 @@ def bloque_medicos():
                     antecedentes_compuesto = f"Personales: {ant_personales} \nFamiliares: {ant_familiares}"
                     
                     conn = get_connection()
-                    # CONTROL ANTI-DUPLICADOS LÓGICO
+                    # CONTROL ANTI-DUPLICADOS LÓGICO COMPLETO
                     ultimo_guardado = conn.execute(
                         "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente_cedula=? ORDER BY id DESC LIMIT 1", 
                         (p_cedula_input,)
