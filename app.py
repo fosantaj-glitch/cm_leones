@@ -59,7 +59,7 @@ st.markdown(
         font-size: 1.1em;
     }
 
-    /* INGENIERÍA DE SEGURIDAD INTERNA: Enmascara visualmente el texto plano simulando un password field sin alertar al navegador */
+    /* Ingeniería de Enmascaramiento de Texto mediante CSS */
     input[type="text"].clase-segura-oculta {
         -webkit-text-security: disc !important;
         text-security: disc !important;
@@ -108,10 +108,11 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
+# El estado inicial del servicio inicia estrictamente en blanco (" ")
 if 'login_servicio_key' not in st.session_state:
-    st.session_state.login_servicio_key = "Seleccione un servicio..."
+    st.session_state.login_servicio_key = " "
 
-# --- 5. LOGIN VERTICAL ---
+# --- 5. LOGIN VERTICAL MÁXIMA SEGURIDAD ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
@@ -125,25 +126,25 @@ def login():
         st.markdown("<p style='text-align: center; color: #d4af37; font-weight: bold; margin-bottom: 20px;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
-        servicios_disponibles = ["Seleccione un servicio...", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
+        # Opciones con espacio inicial vacío puro para forzar la elección del usuario
+        servicios_disponibles = [" ", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox("Elija el servicio al que desea ingresar", servicios_disponibles, key="login_servicio_key")
         
         contenedor_inputs = st.empty()
         
-        if b_destino == "Seleccione un servicio...":
-            contenedor_inputs.info("Por favor, seleccione un servicio arriba para habilitar los campos de acceso individual.")
+        # Renderizado condicional absoluto: Si está vacío, no se dibuja nada en el DOM
+        if b_destino == " ":
+            contenedor_inputs.info("Por favor, seleccione un servicio arriba para desplegar los campos personales de firma manual.")
             u_nombre, p_clave = "", ""
         else:
             with contenedor_inputs.container():
-                # Forzar un cambio continuo en la clave del widget usando marcas de tiempo para invalidar la caché del navegador
+                # Hash temporal dinámico basado en tiempo para deshabilitar el llavero del navegador
                 marca_tiempo = int(time.time() // 3) 
                 
                 u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_safe_{b_destino}_{marca_tiempo}")
-                
-                # Renderizado como input de texto clásico (el navegador no le inyectará nada), pero ocultando caracteres mediante CSS
                 p_clave = st.text_input("CLAVE", value="", autocomplete="off", key=f"pwd_safe_{b_destino}_{marca_tiempo}")
                 
-                # Inyección de clase CSS para enmascarar los caracteres visualmente
+                # Inyección JS para enmascarar los caracteres del campo de texto convencional
                 st.markdown(
                     f"""
                     <script>
@@ -159,7 +160,7 @@ def login():
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
-            if b_destino == "Seleccione un servicio..." or not u_nombre or not p_clave:
+            if b_destino == " " or not u_nombre or not p_clave:
                 st.error("⚠️ Complete todos los campos personales de acceso manual.")
             elif u_nombre == "CMLeones" and p_clave == "2468":
                 st.session_state.user_role = b_destino
@@ -193,7 +194,6 @@ def bloque_administracion():
             c1, c2, c3 = st.columns(3)
             n = c1.text_input("Nombre completo", autocomplete="off")
             c = c2.text_input("Cédula (clave)", autocomplete="off")
-            # Enmascarar visualmente en administración también
             st.markdown("<script>var inputs=window.parent.document.querySelectorAll('input[type=\"text\"]');inputs.forEach(function(i){{if(i.getAttribute('aria-label')==='Cédula (clave)'){{i.classList.add('clase-segura-oculta');}}}});</script>", unsafe_allow_html=True)
             
             b = c3.selectbox("Asignar bloque", ["RECEPCION", "CONTABILIDAD", "MEDICOS"])
@@ -328,7 +328,7 @@ def bloque_recepcion():
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
-# --- 8. CALLBACK DE INGRESO MÉDICO (LIMPIEZA DE ENTRADAS) ---
+# --- 8. CALLBACK DE INGRESO MÉDICO ---
 def ejecutar_ingreso_medico(usr, ced):
     if usr != "Seleccione Médico..." and ced:
         conn = sqlite3.connect('club_leones_centro_medico.db')
@@ -338,14 +338,13 @@ def ejecutar_ingreso_medico(usr, ced):
         if es_valido or (usr == "CMLeones" and ced == "2468"):
             st.session_state.med_acceso_concedido = True
             st.session_state.med_nombre_guardado = usr
-            
             st.session_state["val_usuario"] = "Seleccione Médico..."
             st.session_state["val_cedula"] = ""
         else:
             st.session_state.med_acceso_concedido = False
             st.sidebar.error("❌ Credenciales inválidas.")
 
-# --- 9. BLOQUE MEDICOS ---
+# --- 9. BLOQUE MÉDICOS ---
 def bloque_medicos():
     st.markdown("## 🥼 INTERFAZ DE HISTORIAS CLÍNICAS")
     st.markdown("### 🔑 Validación de Firma Profesional")
@@ -498,7 +497,8 @@ else:
         st.session_state.user_name = None
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
-        st.session_state.login_servicio_key = "Seleccione un servicio..."
+        # REINICIO AUTOMÁTICO AL ESPACIO EN BLANCO PERFECTO AL CERRAR SESIÓN
+        st.session_state.login_servicio_key = " "
         st.rerun()
 
     st.sidebar.divider()
