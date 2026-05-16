@@ -7,12 +7,12 @@ import time
 # --- 1. CONFIGURACIÓN DE PÁGINA (ADN DE TUS APPS ANTERIORES) ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="🦁", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. DISEÑO VISUAL VERTICAL COMPACTO (TODO EN UNA SOLA PÁGINA) ---
+# --- 2. DISEÑO VISUAL VERTICAL COMPACTO Y CENTRADO ---
 st.markdown(
     """
     <style>
-    /* Forzar el contenido para que quepa en una sola pantalla sin scroll vertical */
-    .block-container { padding-top: 1rem; padding-bottom: 0rem; padding-left: 2rem; padding-right: 2rem; }
+    /* Forzar que todo el contenido del Login quepa en una sola pantalla sin scroll */
+    .block-container { padding-top: 2rem; padding-bottom: 0rem; padding-left: 2rem; padding-right: 2rem; }
     
     .stApp { background-color: #f8f9fa; }
     [data-testid="stSidebar"] { background-color: #003366 !important; }
@@ -26,29 +26,29 @@ st.markdown(
     }
     .stButton>button:hover { background-color: #d4af37; color: #003366; }
 
-    /* Tarjeta de Login Vertical idéntica a tu Foto */
+    /* Tarjeta de Login Vertical Centrada y Fina */
     .card-login { 
         background-color: white; 
-        padding: 25px; 
+        padding: 30px; 
         border-radius: 12px; 
         box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
         border-top: 5px solid #d4af37;
-        max-width: 450px;
-        margin: 0 auto; /* Centrar la tarjeta en la pantalla */
+        width: 100%;
+        margin-top: 10px;
     }
 
-    /* Tipografía y Textos */
+    /* Tipografía y Textos Sobrios */
     h2 { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; margin-bottom: 5px; }
     .subtitle { color: #d4af37; font-weight: bold; letter-spacing: 2px; font-size: 1.1em; margin-bottom: 15px; }
 
-    /* Control estricto de espacios */
+    /* Control de espacios de inputs */
     .stTextInput>div, .stSelectbox>div { margin-bottom: 5px; }
     .total-box { background-color: #f1f3f5; color: #003366; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 1.1em; font-weight: bold; margin-top: 10px; }
     </style>
     """, unsafe_allow_html=True
 )
 
-# --- 3. BASE DE DATOS ---
+# --- 3. BASE DE DATOS MÓDULO INTEGRADO ---
 DB_NAME = 'centro_medico_club_leones.db'
 
 def get_connection():
@@ -75,53 +75,52 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# --- 5. LOGIN VERTICAL INTEGRADO (FOTO ORIGINAL REPARADA) ---
+# --- 5. LOGIN VERTICAL (MÁXIMA COMPACTACIÓN Y SIN CAMPOS FANTASMAS) ---
 def login():
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Creamos un formato de 3 columnas para que los campos no vayan de lado a lado
+    col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
     
-    # Contenedor de la tarjeta central vertical
-    st.markdown("<div class='card-login'>", unsafe_allow_html=True)
-    
-    # El logo va dentro de la tarjeta arriba de los campos sin cuadros externos de internet
-    col_l1, col_l2, col_l3 = st.columns([1, 1.8, 1])
-    with col_l2:
+    with col_centro:
+        st.markdown("<div class='card-login'>", unsafe_allow_html=True)
+        
+        # Muestra el logo limpio arriba de los campos sin dejar casilleros vacíos
         try: 
             st.image("logo leones.jpg", use_container_width=True)
         except: 
-            st.write("🦁")
+            pass
             
-    st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
-    st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
-    
-    # Campos de interacción y enrutamiento inteligente
-    b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
-    u_nombre = st.text_input("USUARIO")
-    p_clave = st.text_input("CLAVE", type="password")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("INGRESAR AL SISTEMA"):
-        if u_nombre == "CMLeones" and p_clave == "2468":
-            st.session_state.autenticado = True
-            st.session_state.user_role = b_destino
-            st.session_state.user_name = "Administrador Maestro"
-            st.rerun()
-        else:
-            conn = get_connection()
-            res = conn.execute("SELECT nombre, bloque FROM usuarios WHERE nombre=? AND cedula=? AND bloque=?", 
-                               (u_nombre, p_clave, b_destino)).fetchone()
-            conn.close()
-            if res:
+        st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
+        st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
+        
+        # Elementos de Login
+        b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
+        u_nombre = st.text_input("USUARIO")
+        p_clave = st.text_input("CLAVE", type="password")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("INGRESAR AL SISTEMA"):
+            if u_nombre == "CMLeones" and p_clave == "2468":
                 st.session_state.autenticado = True
-                st.session_state.user_name = res[0]
-                st.session_state.user_role = res[1]
+                st.session_state.user_role = b_destino
+                st.session_state.user_name = "Administrador Maestro"
                 st.rerun()
             else:
-                st.error("⚠️ Credenciales incorrectas para este bloque.")
-                
-    st.markdown("</div>", unsafe_allow_html=True)
+                conn = get_connection()
+                res = conn.execute("SELECT nombre, bloque FROM usuarios WHERE nombre=? AND cedula=? AND bloque=?", 
+                                   (u_nombre, p_clave, b_destino)).fetchone()
+                conn.close()
+                if res:
+                    st.session_state.autenticado = True
+                    st.session_state.user_name = res[0]
+                    st.session_state.user_role = res[1]
+                    st.rerun()
+                else:
+                    st.error("⚠️ Credenciales incorrectas para este bloque.")
+                    
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 6. BLOQUE ADMINISTRACIÓN (CON LISTADO Y EDICIÓN COMPLETA) ---
+# --- 6. BLOQUE ADMINISTRACIÓN ---
 def bloque_administracion():
     st.title("⚙️ ADMINISTRACIÓN GENERAL")
     menu = st.sidebar.selectbox("MENÚ", ["GESTIÓN DE PERMISOS", "GESTIÓN PROFESIONALES", "BASE DE DATOS PACIENTES", "LIQUIDACIÓN MENSUAL"])
@@ -170,7 +169,7 @@ def bloque_administracion():
                         if del_id != "Seleccione...":
                             db = get_connection(); db.execute("DELETE FROM profesionales WHERE id=?", (del_id,)); db.commit(); db.close(); st.rerun()
 
-# --- 7. BLOQUE RECEPCIÓN (REPARADO Y SIN ERRORES DE INDENTACIÓN) ---
+# --- 7. BLOQUE RECEPCIÓN ---
 def bloque_recepcion():
     st.title("🛎️ RECEPCIÓN")
     m = st.sidebar.radio("MENÚ", ["CAJA DIARIA", "AGENDAMIENTOS", "VISUALIZAR/EDITAR CONSULTAS"])
