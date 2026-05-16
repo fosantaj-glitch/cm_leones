@@ -122,9 +122,14 @@ def login():
         servicios_disponibles = ["Seleccione un servicio...", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox("Elija el servicio al que desea ingresar", servicios_disponibles, key="login_servicio_key")
         
-        # SOLUCIÓN DIRECTA: Las llaves dinámicas 'key' destruyen el valor previo del navegador al cambiar de opción
-        u_nombre = st.text_input("USUARIO", autocomplete="off", key=f"usr_input_{b_destino}")
-        p_clave = st.text_input("CLAVE", type="password", autocomplete="off", key=f"pwd_input_{b_destino}")
+        # CAMBIO RIGUROSO ANTI-AUTOLLENADO:
+        # Se inyectan campos fantasmas mudos en HTML para engañar el escaneo inicial del navegador
+        st.markdown('<input type="text" name="fake_user" style="display:none;" />', unsafe_allow_html=True)
+        st.markdown('<input type="password" name="fake_password" style="display:none;" />', unsafe_allow_html=True)
+        
+        # Inputs reales protegidos con llaves dinámicas que mutan de acuerdo a la selección de la lista
+        u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"user_clean_{b_destino}")
+        p_clave = st.text_input("CLAVE", value="", type="password", autocomplete="off", key=f"pass_clean_{b_destino}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
@@ -146,7 +151,7 @@ def login():
                     st.session_state.autenticado = True
                     st.rerun()
                 else:
-                    st.error("⚠️ Credenciales incorrectas para este bloque.")
+                    st.error("⚠️ Credenciales incorrectas para este servicio.")
         st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 6. BLOQUE ADMINISTRACIÓN ---
@@ -301,7 +306,6 @@ def ejecutar_ingreso_medico(usr, ced):
             st.session_state.med_acceso_concedido = True
             st.session_state.med_nombre_guardado = usr
             
-            # Limpieza instantánea de las llaves del estado
             st.session_state["val_usuario"] = "Seleccione Médico..."
             st.session_state["val_cedula"] = ""
         else:
@@ -322,7 +326,8 @@ def bloque_medicos():
     c_m1, c_m2 = st.columns(2)
     doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="val_usuario")
     
-    # PROPIEDADES ANTI-GUARDADO EN EL BLOQUE INTERNO DE VALIDACIÓN MÉDICA
+    # Inputs ocultos contra autollendado agresivo también en el bloque médico
+    st.markdown('<input type="password" name="fake_med_pwd" style="display:none;" />', unsafe_allow_html=True)
     doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="off", key="val_cedula")
     
     st.markdown("<br>", unsafe_allow_html=True)
@@ -395,7 +400,7 @@ def bloque_medicos():
             st.markdown("<div class='seccion-clinica'>6. EXAMEN FÍSICO COMENTADO</div>", unsafe_allow_html=True)
             examen_fisico_txt = st.text_area("Descripción del examen físico y exploración del paciente")
             
-            st.markdown("<div class='seccion-clinica'>7. DIAGNÓSTICO PRESUNTIVO O DEFINITIVO (CIE-10)</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>7. DIAGNÓSTIVO PRESUNTIVO O DEFINITIVO (CIE-10)</div>", unsafe_allow_html=True)
             diag_act = st.text_area("Impresión Diagnóstica / Códigos CIE-10")
             
             st.markdown("<div class='seccion-clinica'>8. PLAN DE TRATAMIENTO Y EVOLUCIÓN</div>", unsafe_allow_html=True)
