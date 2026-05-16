@@ -129,31 +129,30 @@ def login():
             key="selector_servicio_principal"
         )
         
-        contenedor_inputs = st.empty()
-        
+        # RENDERIZADO CONDICIONAL PURO: Evita que se creen hilos visuales fantasmas en el DOM
         if b_destino == " ":
-            contenedor_inputs.info("Por favor, seleccione un servicio arriba para desplegar los campos de acceso.")
+            st.info("Por favor, seleccione un servicio arriba para desplegar los campos de acceso.")
             u_nombre, p_clave = "", ""
         else:
-            with contenedor_inputs.container():
-                # Campos trampa ocultos para desviar el autollenado del navegador de forma segura
-                st.markdown(
-                    """
-                    <div style="display:none;">
-                        <input type="text" name="username_fake" autocomplete="on">
-                        <input type="password" name="password_fake" autocomplete="on">
-                    </div>
-                    """, unsafe_allow_html=True
-                )
-                
-                u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key="usr_real_input")
-                
-                # CORRECCIÓN ELITE: Las columnas se crean estrictamente aquí adentro para no dejar iconos huérfanos si b_destino == " "
-                col_pass, col_ojo = st.columns([6, 1])
-                ver_clave = col_ojo.checkbox("👁️", key="ojo_login", help="Mostrar/Ocultar Clave")
-                tipo_input = "default" if ver_clave else "password"
-                
-                p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="new-password", key="pwd_real_input")
+            # Elementos invisibles trampa para capturar el autollenado del navegador de forma segura
+            st.markdown(
+                """
+                <div style="display:none;">
+                    <input type="text" name="username_fake" autocomplete="on">
+                    <input type="password" name="password_fake" autocomplete="on">
+                </div>
+                """, unsafe_allow_html=True
+            )
+            
+            # Campos reales limpios y estables
+            u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key="usr_real_input")
+            
+            # Estructura del ojo integrada únicamente cuando b_destino es válido
+            col_pass, col_ojo = st.columns([6, 1])
+            ver_clave = col_ojo.checkbox("👁️", key="ojo_login", help="Mostrar/Ocultar Clave")
+            tipo_input = "default" if ver_clave else "password"
+            
+            p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="new-password", key="pwd_real_input")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
@@ -400,24 +399,24 @@ def bloque_medicos():
             
             st.markdown("<div class='seccion-clinica'>1. IDENTIFICACIÓN EXCLUSIVA DEL PACIENTE</div>", unsafe_allow_html=True)
             col_id1, col_id2, col_id3 = st.columns(3)
-            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE", autocomplete="off")
-            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula, autocomplete="off")
-            p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE", autocomplete="off")
+            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE")
+            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula)
+            p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE")
             
             st.markdown("<div class='seccion-clinica'>2. CONTACTO DE EMERGENCIA DEL PACIENTE</div>", unsafe_allow_html=True)
             col_em1, col_em2 = st.columns(2)
-            p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA", autocomplete="off")
-            p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA", autocomplete="off")
+            p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA")
+            p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA")
             
             st.markdown("<div class='seccion-clinica'>3. MOTIVO DE CONSULTA Y ANAMNESIS</div>", unsafe_allow_html=True)
-            motivo_act = st.text_input("Motivo de la Consulta Actual", autocomplete="off")
+            motivo_act = st.text_input("Motivo de la Consulta Actual")
             
             st.markdown("<div class='seccion-clinica'>4. SIGNOS VITALES</div>", unsafe_allow_html=True)
             col_sv1, col_sv2, col_sv3, col_sv4 = st.columns(4)
-            pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80", autocomplete="off")
-            fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72", autocomplete="off")
-            fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16", autocomplete="off")
-            temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5", autocomplete="off")
+            pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80")
+            fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72")
+            fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16")
+            temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5")
             
             st.markdown("<div class='seccion-clinica'>5. ANTECEDENTES PATOLÓGICOS</div>", unsafe_allow_html=True)
             ant_personales = st.text_area("Antecedentes Personales (Clínicos, Quirúrgicos, Alergias)", placeholder="Ninguno / Diabetes / Hipertensión...")
