@@ -7,7 +7,7 @@ import time
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="logo leones.jpg", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. DISEÑO VISUAL SOBRIO Y FUSIONADO EN BLANCO ---
+# --- 2. DISEÑO VISUAL SOBRIO Y FUSIONADO EN BLANCO Y ANTI-AUTOLLENADO ---
 st.markdown(
     """
     <style>
@@ -58,6 +58,12 @@ st.markdown(
         margin-bottom: 10px;
         font-size: 1.1em;
     }
+
+    /* INGENIERÍA DE SEGURIDAD INTERNA: Enmascara visualmente el texto plano simulando un password field sin alertar al navegador */
+    input[type="text"].clase-segura-oculta {
+        -webkit-text-security: disc !important;
+        text-security: disc !important;
+    }
     </style>
     """, unsafe_allow_html=True
 )
@@ -105,7 +111,7 @@ if 'med_nombre_guardado' not in st.session_state:
 if 'login_servicio_key' not in st.session_state:
     st.session_state.login_servicio_key = "Seleccione un servicio..."
 
-# --- 5. LOGIN VERTICAL CON DESACOPLAMIENTO DE MEMORIA DEL DOM ---
+# --- 5. LOGIN VERTICAL ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
@@ -122,7 +128,6 @@ def login():
         servicios_disponibles = ["Seleccione un servicio...", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox("Elija el servicio al que desea ingresar", servicios_disponibles, key="login_servicio_key")
         
-        # ARQUITECTURA ELITE: Contenedor vacío dinámico independiente para destruir inputs de la RAM visual
         contenedor_inputs = st.empty()
         
         if b_destino == "Seleccione un servicio...":
@@ -130,17 +135,33 @@ def login():
             u_nombre, p_clave = "", ""
         else:
             with contenedor_inputs.container():
-                # Inyección de inputs con hashes de clave temporal única basada en marca de tiempo
-                marca_tiempo = int(time.time() // 5) 
-                u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_elite_{b_destino}_{marca_tiempo}")
-                p_clave = st.text_input("CLAVE", value="", type="password", autocomplete="off", key=f"pwd_elite_{b_destino}_{marca_tiempo}")
+                # Forzar un cambio continuo en la clave del widget usando marcas de tiempo para invalidar la caché del navegador
+                marca_tiempo = int(time.time() // 3) 
+                
+                u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_safe_{b_destino}_{marca_tiempo}")
+                
+                # Renderizado como input de texto clásico (el navegador no le inyectará nada), pero ocultando caracteres mediante CSS
+                p_clave = st.text_input("CLAVE", value="", autocomplete="off", key=f"pwd_safe_{b_destino}_{marca_tiempo}")
+                
+                # Inyección de clase CSS para enmascarar los caracteres visualmente
+                st.markdown(
+                    f"""
+                    <script>
+                    var inputs = window.parent.document.querySelectorAll('input[type="text"]');
+                    inputs.forEach(function(input) {{
+                        if (input.getAttribute('aria-label') === 'CLAVE') {{
+                            input.classList.add('clase-segura-oculta');
+                        }}
+                    }});
+                    </script>
+                    """, unsafe_allow_html=True
+                )
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
             if b_destino == "Seleccione un servicio..." or not u_nombre or not p_clave:
                 st.error("⚠️ Complete todos los campos personales de acceso manual.")
             elif u_nombre == "CMLeones" and p_clave == "2468":
-                # Limpieza absoluta de variables antes de mutar de hoja
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
                 st.session_state.autenticado = True
@@ -170,7 +191,11 @@ def bloque_administracion():
         st.header("🛂 Control de Permisos")
         with st.form("f_per", clear_on_submit=True):
             c1, c2, c3 = st.columns(3)
-            n, c = c1.text_input("Nombre completo", autocomplete="off"), c2.text_input("Cédula (clave)", type="password", autocomplete="off")
+            n = c1.text_input("Nombre completo", autocomplete="off")
+            c = c2.text_input("Cédula (clave)", autocomplete="off")
+            # Enmascarar visualmente en administración también
+            st.markdown("<script>var inputs=window.parent.document.querySelectorAll('input[type=\"text\"]');inputs.forEach(function(i){{if(i.getAttribute('aria-label')==='Cédula (clave)'){{i.classList.add('clase-segura-oculta');}}}});</script>", unsafe_allow_html=True)
+            
             b = c3.selectbox("Asignar bloque", ["RECEPCION", "CONTABILIDAD", "MEDICOS"])
             if st.form_submit_button("Autorizar Acceso"):
                 if n and c:
@@ -190,7 +215,8 @@ def bloque_administracion():
                 with st.form("add_doc", clear_on_submit=True):
                     st.write("**Agregar Nuevo Médico**")
                     n_doc = st.text_input("Nombre", autocomplete="off")
-                    c_doc = st.text_input("Cédula", type="password", autocomplete="off")
+                    c_doc = st.text_input("Cédula", autocomplete="off")
+                    st.markdown("<script>var inputs=window.parent.document.querySelectorAll('input[type=\"text\"]');inputs.forEach(function(i){{if(i.getAttribute('aria-label')==='Cédula'){{i.classList.add('clase-segura-oculta');}}}});</script>", unsafe_allow_html=True)
                     if st.form_submit_button("Guardar"):
                         if n_doc:
                             db = get_connection(); db.execute("INSERT INTO profesionales (nombre, cedula) VALUES (?,?)", (n_doc, c_doc)); db.commit(); db.close(); st.rerun()
@@ -312,6 +338,7 @@ def ejecutar_ingreso_medico(usr, ced):
         if es_valido or (usr == "CMLeones" and ced == "2468"):
             st.session_state.med_acceso_concedido = True
             st.session_state.med_nombre_guardado = usr
+            
             st.session_state["val_usuario"] = "Seleccione Médico..."
             st.session_state["val_cedula"] = ""
         else:
@@ -332,8 +359,21 @@ def bloque_medicos():
     c_m1, c_m2 = st.columns(2)
     doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="val_usuario")
     
-    m_tiempo = int(time.time() // 5)
-    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="off", key=f"med_pass_{m_tiempo}")
+    m_tiempo = int(time.time() // 3)
+    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", autocomplete="off", key=f"med_secure_pass_{m_tiempo}")
+    
+    st.markdown(
+        f"""
+        <script>
+        var inputs_med = window.parent.document.querySelectorAll('input[type="text"]');
+        inputs_med.forEach(function(input) {{
+            if (input.getAttribute('aria-label') === 'DIGITE SU NÚMERO DE CÉDULA MÉDICA') {{
+                input.classList.add('clase-segura-oculta');
+            }}
+        }});
+        </script>
+        """, unsafe_allow_html=True
+    )
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.button("INGRESO", on_click=ejecutar_ingreso_medico, args=(doc_usuario, doc_cedula))
