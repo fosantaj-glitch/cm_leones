@@ -16,8 +16,8 @@ st.markdown(
     .block-container { padding-top: 1rem; padding-bottom: 0rem; }
     
     /* Barra Lateral Azul y Oro */
-    [data-testid="stSidebar"] { background-color: #003366 !important; }
-    [data-testid="stSidebar"] * { color: white !important; }
+    [data-testid=\"stSidebar\"] { background-color: #003366 !important; }
+    [data-testid=\"stSidebar\"] * { color: white !important; }
 
     /* Botón Estilo Profesional Leones */
     .stButton>button { 
@@ -57,12 +57,6 @@ st.markdown(
         margin-top: 15px;
         margin-bottom: 10px;
         font-size: 1.1em;
-    }
-
-    /* Ingeniería de Enmascaramiento de Texto mediante CSS */
-    input[type="text"].clase-segura-oculta {
-        -webkit-text-security: disc !important;
-        text-security: disc !important;
     }
     </style>
     """, unsafe_allow_html=True
@@ -108,11 +102,10 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
-# Generador de llave única para controlar de forma reactiva la destrucción del selectbox
 if 'selector_control' not in st.session_state:
     st.session_state.selector_control = 0
 
-# --- 5. LOGIN VERTICAL MÁXIMA SEGURIDAD ---
+# --- 5. LOGIN VERTICAL ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
@@ -126,10 +119,7 @@ def login():
         st.markdown("<p style='text-align: center; color: #d4af37; font-weight: bold; margin-bottom: 20px;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
-        # Opciones con espacio inicial vacío puro para forzar la elección del usuario
         servicios_disponibles = [" ", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
-        
-        # SOLUCIÓN STRUCTURAL ABSOLUTA: El key dinámico destruye físicamente el widget al cerrar sesión
         b_destino = st.selectbox(
             "Elija el servicio al que desea ingresar", 
             servicios_disponibles, 
@@ -138,29 +128,19 @@ def login():
         
         contenedor_inputs = st.empty()
         
-        # Renderizado condicional absoluto: Si está vacío, no existe nada en el DOM
         if b_destino == " ":
             contenedor_inputs.info("Por favor, seleccione un servicio arriba para desplegar los campos personales de firma manual.")
             u_nombre, p_clave = "", ""
         else:
             with contenedor_inputs.container():
-                marca_tiempo = int(time.time() // 3) 
+                u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_safe_{b_destino}")
                 
-                u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_safe_{b_destino}_{marca_tiempo}")
-                p_clave = st.text_input("CLAVE", value="", autocomplete="off", key=f"pwd_safe_{b_destino}_{marca_tiempo}")
+                # Diseño de control visual: Ojo para mostrar u ocultar la clave de manera controlada
+                col_pass, col_ojo = st.columns([6, 1])
+                ver_clave = col_ojo.checkbox("👁️", key=f"ojo_{b_destino}", help="Mostrar/Ocultar Clave")
                 
-                st.markdown(
-                    f"""
-                    <script>
-                    var inputs = window.parent.document.querySelectorAll('input[type="text"]');
-                    inputs.forEach(function(input) {{
-                        if (input.getAttribute('aria-label') === 'CLAVE') {{
-                            input.classList.add('clase-segura-oculta');
-                        }}
-                    }});
-                    </script>
-                    """, unsafe_allow_html=True
-                )
+                tipo_input = "default" if ver_clave else "password"
+                p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="off", key=f"pwd_safe_{b_destino}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
@@ -197,9 +177,7 @@ def bloque_administracion():
         with st.form("f_per", clear_on_submit=True):
             c1, c2, c3 = st.columns(3)
             n = c1.text_input("Nombre completo", autocomplete="off")
-            c = c2.text_input("Cédula (clave)", autocomplete="off")
-            st.markdown("<script>var inputs=window.parent.document.querySelectorAll('input[type=\"text\"]');inputs.forEach(function(i){{if(i.getAttribute('aria-label')==='Cédula (clave)'){{i.classList.add('clase-segura-oculta');}}}});</script>", unsafe_allow_html=True)
-            
+            c = c2.text_input("Cédula (clave)", type="password", autocomplete="off")
             b = c3.selectbox("Asignar bloque", ["RECEPCION", "CONTABILIDAD", "MEDICOS"])
             if st.form_submit_button("Autorizar Acceso"):
                 if n and c:
@@ -219,8 +197,7 @@ def bloque_administracion():
                 with st.form("add_doc", clear_on_submit=True):
                     st.write("**Agregar Nuevo Médico**")
                     n_doc = st.text_input("Nombre", autocomplete="off")
-                    c_doc = st.text_input("Cédula", autocomplete="off")
-                    st.markdown("<script>var inputs=window.parent.document.querySelectorAll('input[type=\"text\"]');inputs.forEach(function(i){{if(i.getAttribute('aria-label')==='Cédula'){{i.classList.add('clase-segura-oculta');}}}});</script>", unsafe_allow_html=True)
+                    c_doc = st.text_input("Cédula", type="password", autocomplete="off")
                     if st.form_submit_button("Guardar"):
                         if n_doc:
                             db = get_connection(); db.execute("INSERT INTO profesionales (nombre, cedula) VALUES (?,?)", (n_doc, c_doc)); db.commit(); db.close(); st.rerun()
@@ -362,21 +339,11 @@ def bloque_medicos():
     c_m1, c_m2 = st.columns(2)
     doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="val_usuario")
     
-    m_tiempo = int(time.time() // 3)
-    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", autocomplete="off", key=f"med_secure_pass_{m_tiempo}")
+    col_med_pass, col_med_ojo = st.columns([6, 1])
+    ver_med_clave = col_med_ojo.checkbox("👁️", key="ojo_medicos", help="Mostrar/Ocultar Clave")
+    tipo_med_input = "default" if ver_med_clave else "password"
     
-    st.markdown(
-        f"""
-        <script>
-        var inputs_med = window.parent.document.querySelectorAll('input[type="text"]');
-        inputs_med.forEach(function(input) {{
-            if (input.getAttribute('aria-label') === 'DIGITE SU NÚMERO DE CÉDULA MÉDICA') {{
-                input.classList.add('clase-segura-oculta');
-            }}
-        }});
-        </script>
-        """, unsafe_allow_html=True
-    )
+    doc_cedula = col_med_pass.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type=tipo_med_input, autocomplete="off", key="val_cedula")
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.button("INGRESO", on_click=ejecutar_ingreso_medico, args=(doc_usuario, doc_cedula))
@@ -501,8 +468,6 @@ else:
         st.session_state.user_name = None
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
-        
-        # MUTACIÓN DEL CONTROL: Forzamos la alteración del widget selectbox para destruirlo del navegador
         st.session_state.selector_control += 1
         st.rerun()
 
