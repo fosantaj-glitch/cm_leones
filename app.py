@@ -4,20 +4,23 @@ import sqlite3
 from datetime import datetime
 import time
 
-# --- 1. CONFIGURACIÓN DE PÁGINA (ADN DE TUS APPS ANTERIORES) ---
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="🦁", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. DISEÑO VISUAL ULTRA MINIMALISTA (FUSIONADO EN BLANCO PURO) ---
+# --- 2. ARQUITECTURA VISUAL ULTRA-COMPACTA Y DE ANCHO FIJO (UNA SOLA HOJA) ---
 st.markdown(
     """
     <style>
-    /* Forzar fondo blanco absoluto en toda la aplicación para fusionar el logo */
+    /* Forzar fondo blanco absoluto en toda la pantalla */
     .stApp, .block-container, [data-testid="stCanvasZone"], [data-testid="stWidgetFormView"] { 
         background-color: #ffffff !important; 
     }
     
-    /* Eliminar márgenes y espacios fantasma superiores */
-    .block-container { padding-top: 2rem; padding-bottom: 0rem; padding-left: 2rem; padding-right: 2rem; }
+    /* Eliminar márgenes y espacios muertos del tope de la página */
+    .block-container { padding-top: 0.5rem; padding-bottom: 0rem; padding-left: 1rem; padding-right: 1rem; }
+    
+    /* Ocultar elementos decorativos por defecto de Streamlit que generan espacios fantasma */
+    [data-testid="stHeader"] { display: none; }
     
     /* Barra Lateral Azul y Oro */
     [data-testid="stSidebar"] { background-color: #003366 !important; }
@@ -25,29 +28,37 @@ st.markdown(
 
     /* Botón Estilo Profesional Leones */
     .stButton>button { 
-        width: 100%; border-radius: 6px; height: 3em; 
+        width: 100%; border-radius: 6px; height: 2.8em; 
         background-color: #003366; color: white; 
         border: 1px solid #d4af37; font-weight: bold; 
     }
     .stButton>button:hover { background-color: #d4af37; color: #003366; }
 
-    /* Tarjeta de Login Vertical Perfectamente Fina y Centrada */
-    .card-login { 
-        background-color: #ffffff; 
-        padding: 25px; 
-        border-radius: 12px; 
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
-        border-top: 5px solid #d4af37;
-        max-width: 420px;
-        margin: 0 auto; /* Centrado absoluto */
+    /* CONTENEDOR MAESTRO DE ANCHO FIJO: Evita que el logo y los campos crezcan de lado a lado */
+    .login-wrapper {
+        max-width: 360px;
+        margin: 0 auto; /* Centrado absoluto horizontal */
+        padding-top: 10px;
+        text-align: center;
     }
 
-    /* Tipografía Limpia */
-    h2 { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; margin-bottom: 5px; margin-top: 5px; }
-    .subtitle { color: #d4af37; font-weight: bold; letter-spacing: 2px; font-size: 1.05em; margin-bottom: 15px; text-align: center; }
+    /* Tarjeta Compacta Fina */
+    .card-login { 
+        background-color: #ffffff; 
+        padding: 20px; 
+        border-radius: 12px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06); 
+        border-top: 5px solid #d4af37;
+        text-align: left; /* Alineación interna de los campos */
+        margin-top: 10px;
+    }
 
-    /* Forzar alineación de inputs para evitar saltos */
-    .stTextInput>div, .stSelectbox>div { margin-bottom: 5px; }
+    /* Tipografía Fina y Ajustada */
+    .main-title { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; font-size: 1.6em; margin-bottom: 2px; text-align: center; }
+    .subtitle { color: #d4af37; font-weight: bold; letter-spacing: 2px; font-size: 0.95em; margin-bottom: 12px; text-align: center; }
+
+    /* Ajuste estricto de inputs */
+    .stTextInput>div, .stSelectbox>div { margin-bottom: 2px; }
     .total-box { background-color: #f8f9fa; color: #003366; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 1.1em; font-weight: bold; margin-top: 10px; }
     </style>
     """, unsafe_allow_html=True
@@ -80,24 +91,23 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# --- 5. LOGIN VERTICAL INTEGRADO (FUSIONADO 100% CON EL FONDO) ---
+# --- 5. LOGIN VERTICAL CONTROLADO (ANCHO DE 360PX EXACTO) ---
 def login():
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Todo el bloque se encierra en el contenedor de ancho fijo para que no se desparrame por la pantalla
+    st.markdown("<div class='login-wrapper'>", unsafe_allow_html=True)
     
-    # Contenedor de la tarjeta central vertical fina
-    st.markdown("<div class='card-login'>", unsafe_allow_html=True)
-    
-    # Renderizado directo de la imagen para evitar que Streamlit genere campos vacíos arriba
     try: 
+        # Al estar dentro de un bloque de 360px, la imagen se escala automáticamente de forma perfecta
         st.image("logo leones.jpg", use_container_width=True)
     except: 
         st.write("🦁")
             
-    st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
+    st.markdown("<div class='main-title'>CLUB DE LEONES CUMBAYA-ILALO</div>", unsafe_allow_html=True)
     st.markdown("<p class='subtitle'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
-    st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
     
-    # Menú e inputs compactos
+    # Tarjeta con los campos estilizados y finos
+    st.markdown("<div class='card-login'>", unsafe_allow_html=True)
+    
     b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
     u_nombre = st.text_input("USUARIO")
     p_clave = st.text_input("CLAVE", type="password")
@@ -120,9 +130,10 @@ def login():
                 st.session_state.user_role = res[1]
                 st.rerun()
             else:
-                st.error("⚠️ Credenciales incorrectas para este bloque.")
+                st.error("⚠️ Datos incorrectos.")
                 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True) # Cierre card-login
+    st.markdown("</div>", unsafe_allow_html=True) # Cierre login-wrapper
 
 # --- 6. BLOQUE ADMINISTRACIÓN ---
 def bloque_administracion():
@@ -245,23 +256,4 @@ def bloque_recepcion():
                             c_b1, c_b2 = st.columns(2)
                             if c_b1.form_submit_button("ACTUALIZAR DATOS"):
                                 db = get_connection(); db.execute("UPDATE consultas SET forma_pago=?, v_consulta=?, v_proc=?, v_inyec=?, v_cert=?, total=?, observaciones=? WHERE id=?", (new_p, new_vc, new_vp, new_vi, new_vce, new_tot, new_obs, r['id'])); db.commit(); db.close(); st.success("Actualizado"); time.sleep(0.5); st.rerun()
-                            if c_b2.form_submit_button("ELIMINAR REGISTRO"):
-                                db = get_connection(); db.execute("DELETE FROM consultas WHERE id=?", (r['id'],)); db.commit(); db.close(); st.warning("Eliminado"); time.sleep(0.5); st.rerun()
-                st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
-        else: st.info("No hay registros en la fecha seleccionada.")
-
-# --- 8. EJECUCIÓN NAVEGACIÓN GENERAL ---
-if not st.session_state.autenticado:
-    login()
-else:
-    st.sidebar.markdown("<br>", unsafe_allow_html=True)
-    try: st.sidebar.image("logo leones.jpg", width=120)
-    except: pass
-    st.sidebar.markdown(f"👤 **{st.session_state.user_name}**")
-    if st.sidebar.button("SALIR DEL SISTEMA"):
-        st.session_state.autenticado = False; st.rerun()
-
-    if st.session_state.user_role == "ADMINISTRACION":
-        bloque_administracion()
-    elif st.session_state.user_role == "RECEPCION":
-        bloque_recepcion()
+                            if c_b2
