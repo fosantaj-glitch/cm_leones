@@ -1,4 +1,4 @@
-import streamlit st
+import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import datetime
@@ -219,31 +219,26 @@ def bloque_administracion():
         except:
             st.info("La base de datos de pacientes se poblará al guardar la primera historia clínica.")
 
-    # --- MÓDULO HISTORIAS CLÍNICAS AUDITORÍA (CORREGIDO DE RAÍZ) ---
+    # --- MÓDULO HISTORIAS CLÍNICAS AUDITORÍA ---
     elif menu == "HISTORIAS CLÍNICAS AUDITORÍA":
         st.header("📋 Auditoría y Control de Historias Clínicas")
         st.markdown("---")
         
         conn = get_connection()
-        # Se listan TODOS los profesionales de la tabla maestra, garantizando que el campo de selección siempre aparezca
         medicos_db = [r[0] for r in conn.execute("SELECT nombre FROM profesionales ORDER BY nombre").fetchall()]
         opciones_medicos_auditoria = ["CMLeones"] + medicos_db
         
-        # El campo de selección del médico siempre se renderiza incondicionalmente aquí
         medico_sel = st.selectbox("💡 Seleccione el Médico Especialista para auditar:", ["Seleccione Médico..."] + opciones_medicos_auditoria)
         
         if medico_sel != "Seleccione Médico...":
-            # Filtrar los pacientes de este médico en específico
             pacientes_db = [r[0] for r in conn.execute("SELECT DISTINCT paciente_nombre FROM historias_clinicas WHERE medico=? ORDER BY paciente_nombre", (medico_sel,)).fetchall()]
             
-            # CORRECCIÓN DE FLUJO: Si el médico no tiene historias, se maneja de forma aislada sin romper el selectbox de arriba
             if not pacientes_db:
                 st.warning(f"ℹ️ El profesional '{medico_sel}' está registrado en el sistema, pero no posee historias clínicas almacenadas actualmente.")
             else:
                 paciente_sel = st.selectbox("👤 Seleccione el Paciente:", ["Seleccione Paciente..."] + pacientes_db)
                 
                 if paciente_sel != "Seleccione Paciente...":
-                    # Cargar las fechas de atención de este paciente con este médico
                     fechas_db = [r[0] for r in conn.execute("SELECT fecha_registro FROM historias_clinicas WHERE medico=? AND paciente_nombre=? ORDER BY fecha_registro DESC", (medico_sel, paciente_sel)).fetchall()]
                     
                     fechas_sel = st.multiselect("📅 Seleccione la o las Fechas de Atención a consultar:", fechas_db)
