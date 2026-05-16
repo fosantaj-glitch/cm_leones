@@ -3,24 +3,17 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 import time
-import base64
-import os
 
-# --- 1. CONFIGURACIÓN DE PÁGINA (ADN DE TUS APPS ANTERIORES) ---
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="🦁", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. DISEÑO VISUAL ULTRA COMPACTO (FUSIONADO EN BLANCO ABSOLUTO) ---
+# --- 2. DISEÑO VISUAL SOBRIO Y FUSIONADO EN BLANCO ---
 st.markdown(
     """
     <style>
     /* Forzar fondo blanco absoluto en toda la aplicación para fusionar el logo */
-    .stApp, .block-container, [data-testid="stCanvasZone"], [data-testid="stWidgetFormView"] { 
-        background-color: #ffffff !important; 
-    }
-    
-    /* Eliminar cualquier margen superior decorativo de Streamlit que genere espacios fantasma */
-    .block-container { padding-top: 2rem !important; padding-bottom: 0rem; }
-    [data-testid="stHeader"] { display: none; }
+    .stApp { background-color: #ffffff; }
+    .block-container { padding-top: 1rem; padding-bottom: 0rem; }
     
     /* Barra Lateral Azul y Oro */
     [data-testid="stSidebar"] { background-color: #003366 !important; }
@@ -34,46 +27,25 @@ st.markdown(
     }
     .stButton>button:hover { background-color: #d4af37; color: #003366; }
 
-    /* Centrado absoluto de la tarjeta */
-    .login-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-    }
-
-    /* Tarjeta de Login Vertical Rígida y Fina (Ancho exacto de 360px de tu foto) */
+    /* Tarjeta de Login Vertical Fina y Centrada */
     .card-login { 
-        background-color: white; 
-        padding: 25px; 
-        border-radius: 12px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        background-color: white; padding: 25px; 
+        border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
         border-top: 5px solid #d4af37;
-        width: 360px; 
-    }
-
-    /* Estilo para incrustar el logo en HTML puro para que no se corte ni deje espacios */
-    .logo-html {
-        width: 100%;
-        max-width: 160px;
-        height: auto;
-        display: block;
-        margin: 0 auto 10px auto;
-        image-rendering: -webkit-optimize-contrast;
     }
 
     /* Tipografía Limpia */
-    h2 { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; margin-bottom: 5px; margin-top: 5px; }
-    .subtitle { color: #d4af37; font-weight: bold; letter-spacing: 2px; font-size: 1.05em; margin-bottom: 15px; text-align: center; }
+    h2 { color: #003366; font-family: 'Segoe UI', sans-serif; font-weight: bold; margin-bottom: 5px; }
+    .subtitle { color: #d4af37; font-weight: bold; letter-spacing: 2px; font-size: 1.1em; margin-bottom: 15px; text-align: center; }
 
-    /* Forzar alineación estrecha de inputs */
+    /* Forzar alineación de inputs */
     .stTextInput>div, .stSelectbox>div { margin-bottom: -15px; }
     .total-box { background-color: #f1f3f5; color: #003366; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 1.1em; font-weight: bold; margin-top: 10px; }
     </style>
     """, unsafe_allow_html=True
 )
 
-# --- 3. BASE DE DATOS ---
+# --- 3. BASE DE DATOS MÓDULO INTEGRADO ---
 DB_NAME = 'club_leones_centro_medico.db'
 
 def get_connection():
@@ -100,57 +72,52 @@ if 'autenticado' not in st.session_state:
     st.session_state.user_role = None
     st.session_state.user_name = None
 
-# Función experta para transformar tu logo local a código binario web (Base64)
-def cargar_logo_base64(ruta):
-    if os.path.exists(ruta):
-        with open(ruta, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    return ""
-
-# --- 5. LOGIN MAESTRO DEFINITIVO (HTML INTEGRADO - ANCHO DE 360PX) ---
+# --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
 def login():
-    # Abrimos el bloque contenedor central
-    st.markdown("<div class='login-container'>", unsafe_allow_html=True)
-    st.markdown("<div class='card-login'>", unsafe_allow_html=True)
-    
-    # Renderizado directo en HTML puro: elimina el bug de espacios fantasmas de Streamlit
-    logo_b64 = cargar_logo_base64("logo leones.jpg")
-    if logo_b64:
-        st.markdown(f'<img src="data:image/jpeg;base64,{logo_b64}" class="logo-html">', unsafe_allow_html=True)
-    else:
-        st.markdown("<h2 style='text-align: center;'>🦁</h2>", unsafe_allow_html=True)
-        
-    st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
-    st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
-    
-    # Inputs finos y estilizados dentro del ancho controlado
-    b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
-    u_nombre = st.text_input("USUARIO")
-    p_clave = st.text_input("CLAVE", type="password")
-    
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("INGRESAR AL SISTEMA"):
-        if u_nombre == "CMLeones" and p_clave == "2468":
-            st.session_state.autenticado = True
-            st.session_state.user_role = b_destino
-            st.session_state.user_name = "Administrador Maestro"
-            st.rerun()
-        else:
-            conn = get_connection()
-            res = conn.execute("SELECT nombre, bloque FROM usuarios WHERE nombre=? AND cedula=? AND bloque=?", 
-                               (u_nombre, p_clave, b_destino)).fetchone()
-            conn.close()
-            if res:
+    
+    # Formato rígido de 3 columnas para evitar que los campos se deformen de lado a lado
+    col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
+    
+    with col_centro:
+        st.markdown("<div class='card-login'>", unsafe_allow_html=True)
+        
+        # Carga limpia de la imagen local para evitar bloques fantasma flotantes
+        try: 
+            st.image("logo leones.jpg", use_container_width=True)
+        except: 
+            pass
+            
+        st.markdown("<h2 style='text-align: center;'>CLUB DE LEONES CUMBAYA-ILALO</h2>", unsafe_allow_html=True)
+        st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
+        
+        # Inputs de Login
+        b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
+        u_nombre = st.text_input("USUARIO")
+        p_clave = st.text_input("CLAVE", type="password")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("INGRESAR AL SISTEMA"):
+            if u_nombre == "CMLeones" and p_clave == "2468":
                 st.session_state.autenticado = True
-                st.session_state.user_name = res[0]
-                st.session_state.user_role = res[1]
+                st.session_state.user_role = b_destino
+                st.session_state.user_name = "Administrador Maestro"
                 st.rerun()
             else:
-                st.error("⚠️ Credenciales incorrectas para este bloque.")
-                
-    st.markdown("</div>", unsafe_allow_html=True) # Cierre card-login
-    st.markdown("</div>", unsafe_allow_html=True) # Cierre login-container
+                conn = get_connection()
+                res = conn.execute("SELECT nombre, bloque FROM usuarios WHERE nombre=? AND cedula=? AND bloque=?", 
+                                   (u_nombre, p_clave, b_destino)).fetchone()
+                conn.close()
+                if res:
+                    st.session_state.autenticado = True
+                    st.session_state.user_name = res[0]
+                    st.session_state.user_role = res[1]
+                    st.rerun()
+                else:
+                    st.error("⚠️ Credenciales incorrectas para este bloque.")
+                    
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 6. BLOQUE ADMINISTRACIÓN ---
 def bloque_administracion():
@@ -272,9 +239,9 @@ def bloque_recepcion():
                             
                             c_b1, c_b2 = st.columns(2)
                             if c_b1.form_submit_button("ACTUALIZAR DATOS"):
-                                db = get_connection(); db.execute("UPDATE consultas SET forma_pago=?, v_consulta=?, v_proc=?, v_inyec=?, v_cert=?, total=?, observaciones=? WHERE id=?", (new_p, new_vc, new_vp, new_vi, new_vce, new_tot, new_obs, r['id'])); db.commit(); db.close(); st.success("Actualizado"); time.sleep(0.5); r.rerun()
+                                db = get_connection(); db.execute("UPDATE consultas SET forma_pago=?, v_consulta=?, v_proc=?, v_inyec=?, v_cert=?, total=?, observaciones=? WHERE id=?", (new_p, new_vc, new_vp, new_vi, new_vce, new_tot, new_obs, r['id'])); db.commit(); db.close(); st.success("Actualizado"); time.sleep(0.5); st.rerun()
                             if c_b2.form_submit_button("ELIMINAR REGISTRO"):
-                                db = get_connection(); db.execute("DELETE FROM consultas WHERE id=?", (r['id'],)); db.commit(); db.close(); st.warning("Eliminado"); time.sleep(0.5); r.rerun()
+                                db = get_connection(); db.execute("DELETE FROM consultas WHERE id=?", (r['id'],)); db.commit(); db.close(); st.warning("Eliminado"); time.sleep(0.5); st.rerun()
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
@@ -299,7 +266,7 @@ else:
         bloque_recepcion()
     elif st.session_state.user_role == "MEDICOS":
         st.title("🥼 BLOQUE MEDICOS")
-        st.info("Bloque en construcción.")
+        st.info("Bloque en construcción (Historias Clínicas).")
     elif st.session_state.user_role == "CONTABILIDAD":
         st.title("💰 BLOQUE CONTABILIDAD")
         st.info("Bloque en construcción.")
