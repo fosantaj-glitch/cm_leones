@@ -108,9 +108,9 @@ if 'med_acceso_concedido' not in st.session_state:
 if 'med_nombre_guardado' not in st.session_state:
     st.session_state.med_nombre_guardado = ""
 
-# El estado inicial del servicio inicia estrictamente en blanco (" ")
-if 'login_servicio_key' not in st.session_state:
-    st.session_state.login_servicio_key = " "
+# Generador de llave única para controlar de forma reactiva la destrucción del selectbox
+if 'selector_control' not in st.session_state:
+    st.session_state.selector_control = 0
 
 # --- 5. LOGIN VERTICAL MÁXIMA SEGURIDAD ---
 def login():
@@ -128,23 +128,27 @@ def login():
         
         # Opciones con espacio inicial vacío puro para forzar la elección del usuario
         servicios_disponibles = [" ", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
-        b_destino = st.selectbox("Elija el servicio al que desea ingresar", servicios_disponibles, key="login_servicio_key")
+        
+        # SOLUCIÓN STRUCTURAL ABSOLUTA: El key dinámico destruye físicamente el widget al cerrar sesión
+        b_destino = st.selectbox(
+            "Elija el servicio al que desea ingresar", 
+            servicios_disponibles, 
+            key=f"login_service_key_{st.session_state.selector_control}"
+        )
         
         contenedor_inputs = st.empty()
         
-        # Renderizado condicional absoluto: Si está vacío, no se dibuja nada en el DOM
+        # Renderizado condicional absoluto: Si está vacío, no existe nada en el DOM
         if b_destino == " ":
             contenedor_inputs.info("Por favor, seleccione un servicio arriba para desplegar los campos personales de firma manual.")
             u_nombre, p_clave = "", ""
         else:
             with contenedor_inputs.container():
-                # Hash temporal dinámico basado en tiempo para deshabilitar el llavero del navegador
                 marca_tiempo = int(time.time() // 3) 
                 
                 u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_safe_{b_destino}_{marca_tiempo}")
                 p_clave = st.text_input("CLAVE", value="", autocomplete="off", key=f"pwd_safe_{b_destino}_{marca_tiempo}")
                 
-                # Inyección JS para enmascarar los caracteres del campo de texto convencional
                 st.markdown(
                     f"""
                     <script>
@@ -497,8 +501,9 @@ else:
         st.session_state.user_name = None
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
-        # REINICIO AUTOMÁTICO AL ESPACIO EN BLANCO PERFECTO AL CERRAR SESIÓN
-        st.session_state.login_servicio_key = " "
+        
+        # MUTACIÓN DEL CONTROL: Forzamos la alteración del widget selectbox para destruirlo del navegador
+        st.session_state.selector_control += 1
         st.rerun()
 
     st.sidebar.divider()
