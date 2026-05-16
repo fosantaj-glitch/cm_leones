@@ -159,7 +159,7 @@ def login():
                     
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 6. BLOQUE ADMINISTRACIÓN (CON NUEVA OPCIÓN DE HISTORIAS CLÍNICAS) ---
+# --- 6. BLOQUE ADMINISTRACIÓN ---
 def bloque_administracion():
     st.title("⚙️ ADMINISTRACIÓN GENERAL")
     menu = st.sidebar.radio("MENÚ", ["GESTIÓN DE PERMISOS", "GESTIÓN PROFESIONALES", "BASE DE DATOS PACIENTES", "HISTORIAS CLÍNICAS AUDITORÍA", "LIQUIDACIÓN MENSUAL"])
@@ -219,34 +219,36 @@ def bloque_administracion():
         except:
             st.info("La base de datos de pacientes se poblará al guardar la primera historia clínica.")
 
-    # --- NUEVO MÓDULO SOLICITADO: HISTORIAS CLÍNICAS AUDITORÍA ---
+    # --- MÓDULO HISTORIAS CLÍNICAS AUDITORÍA (CORREGIDO) ---
     elif menu == "HISTORIAS CLÍNICAS AUDITORÍA":
         st.header("📋 Auditoría y Control de Historias Clínicas")
         st.markdown("---")
         
         conn = get_connection()
-        # 1. Obtener lista de todos los médicos que tienen al menos una historia clínica guardada
-        medicos_db = [r[0] for r in conn.execute("SELECT DISTINCT medico FROM historias_clinicas ORDER BY medico").fetchall()]
+        # CORRECCIÓN DIRECTA: Se listan TODOS los profesionales registrados en el sistema (tengan o no historias)
+        medicos_db = [r[0] for r in conn.execute("SELECT nombre FROM profesionales ORDER BY nombre").fetchall()]
         
-        if medicos_db:
-            medico_sel = st.selectbox("🩺 Seleccione el Médico Especialista:", ["Seleccione Médico..."] + medicos_db)
+        # Siempre incluimos la cuenta de respaldo del sistema por defecto
+        opciones_medicos_auditoria = ["CMLeones"] + medicos_db
+        
+        medico_sel = st.selectbox("🩺 Seleccione el Médico Especialista:", ["Seleccione Médico..."] + opciones_medicos_auditoria)
+        
+        if medico_sel != "Seleccione Médico...":
+            # Filtrar pacientes atendidos específicamente por el médico seleccionado
+            pacientes_db = [r[0] for r in conn.execute("SELECT DISTINCT paciente_nombre FROM historias_clinicas WHERE medico=? ORDER BY paciente_nombre", (medico_sel,)).fetchall()]
             
-            if medico_sel != "Seleccione Médico...":
-                # 2. Desplegar los nombres de los pacientes atendidos por ese médico elegido
-                pacientes_db = [r[0] for r in conn.execute("SELECT DISTINCT paciente_nombre FROM historias_clinicas WHERE medico=? ORDER BY paciente_nombre", (medico_sel,)).fetchall()]
+            if pacientes_db:
                 paciente_sel = st.selectbox("👤 Seleccione el Paciente:", ["Seleccione Paciente..."] + pacientes_db)
                 
                 if paciente_sel != "Seleccione Paciente...":
-                    # 3. Desplegar las fechas en que fue atendido el paciente por este médico
+                    # Desplegar las fechas de atención asociadas a ese paciente y médico
                     fechas_db = [r[0] for r in conn.execute("SELECT fecha_registro FROM historias_clinicas WHERE medico=? AND paciente_nombre=? ORDER BY fecha_registro DESC", (medico_sel, paciente_sel)).fetchall()]
                     
-                    # Permite elegir una o varias fechas en simultáneo
                     fechas_sel = st.multiselect("📅 Seleccione la o las Fechas de Atención a consultar:", fechas_db)
                     
                     if fechas_sel:
                         st.markdown("### 📄 Expedientes Clínicos Seleccionados")
                         
-                        # Variable para almacenar el texto completo unificado que servirá para imprimir o descargar
                         texto_completo_documento = f"CLUB DE LEONES CUMBAYÁ-ILALÓ\nREPORTE DE AUDITORÍA CLÍNICA\n"
                         texto_completo_documento += f"MÉDICO: {medico_sel.upper()} | PACIENTE: {paciente_sel.upper()}\n"
                         texto_completo_documento += "="*60 + "\n\n"
@@ -261,7 +263,6 @@ def bloque_administracion():
                             ).fetchone()
                             
                             if datos_clinicos:
-                                # Construcción del formato visual estético en pantalla
                                 with st.container():
                                     st.markdown(f"<div class='hoja-clinica'>", unsafe_allow_html=True)
                                     st.markdown(f"#### ⏱️ Atención Registrada: {f}")
@@ -271,7 +272,7 @@ def bloque_administracion():
                                     st.write(datos_clinicos[4])
                                     st.markdown("<div class='seccion-clinica'>Signos Vitales</div>", unsafe_allow_html=True)
                                     st.write(datos_clinicos[5])
-                                    st.markdown("<div class='seccion-clinica'>Antecedentes Patológicos</div>", unsafe_allow_html=True)
+                                    st.markdown("<div class='seccion-clinica'>Antecedentes Patolológicos</div>", unsafe_allow_html=True)
                                     st.write(datos_clinicos[6])
                                     st.markdown("<div class='seccion-clinica'>Examen Físico</div>", unsafe_allow_html=True)
                                     st.write(datos_clinicos[7])
@@ -282,7 +283,6 @@ def bloque_administracion():
                                     st.markdown("</div>", unsafe_allow_html=True)
                                     st.write("<br>", unsafe_allow_html=True)
                                 
-                                # Acumulación en el string de descarga/impresión
                                 texto_completo_documento += f"FECHA REGISTRO: {f}\n"
                                 texto_completo_documento += f"Cédula: {datos_clinicos[0]} | Teléfono: {datos_clinicos[1]}\n"
                                 texto_completo_documento += f"Contacto Emergencia: {datos_clinicos[2]} - Tel: {datos_clinicos[3]}\n"
@@ -294,21 +294,12 @@ def bloque_administracion():
                                 texto_completo_documento += f"- TRATAMIENTO: {datos_clinicos[9]}\n"
                                 texto_completo_documento += "-"*50 + "\n\n"
                         
-                        # --- BOTONES DE ACCIÓN: IMPRIMIR Y DESCARGAR ---
                         st.markdown("### 🖨️ Acciones de Reporte")
                         c_act1, c_act2 = st.columns(2)
                         
-                        # Opción 1: Imprimir (Invoca el cuadro de impresión nativo del OS para buscar hardware local/red)
                         if c_act1.button("🖨️ IMPRIMIR SELECCIONADAS"):
-                            st.markdown(
-                                """
-                                <script>
-                                window.print();
-                                </script>
-                                """, unsafe_allow_html=True
-                            )
+                            st.markdown("<script>window.print();</script>", unsafe_allow_html=True)
                         
-                        # Opción 2: Descargar (Genera un archivo plano estructurado para guardar en PC o Pendrive)
                         nombre_archivo_salida = f"Ficha_{paciente_sel.replace(' ', '_')}.txt"
                         c_act2.download_button(
                             label="💾 DESCARGAR SELECCIONADAS (.TXT)",
@@ -316,8 +307,8 @@ def bloque_administracion():
                             file_name=nombre_archivo_salida,
                             mime="text/plain"
                         )
-        else:
-            st.info("No se registran historias clínicas guardadas en el sistema para auditar.")
+            else:
+                st.warning(f"ℹ️ El profesional {medico_sel} se encuentra registrado, pero no posee historias clínicas almacenadas en la base de datos actualmente.")
         conn.close()
 
     elif menu == "LIQUIDACIÓN MENSUAL":
@@ -395,7 +386,7 @@ def bloque_recepcion():
                             
                             c_b1, c_b2 = st.columns(2)
                             if c_b1.form_submit_button("ACTUALIZAR DATOS"):
-                                db = get_connection(); db.execute("UPDATE consultas SET forma_pago=?, v_consulta=?, v_proc=?, v_inyec=?, v_cert=?, total=?, observaciones=? WHERE id=?", (new_p, new_vc, new_vp, new_vi, new_vce, new_tot, new_obs, r['id'])); db.commit(); db.close(); st.success("Actualizado"); time.sleep(0.5); r.rerun()
+                                db = get_connection(); db.execute("UPDATE consultas SET forma_pago=?, v_consulta=?, v_proc=?, v_inyec=?, v_cert=?, total=?, observaciones=? WHERE id=?", (new_p, new_vc, new_vp, new_vi, new_vce, new_tot, new_obs, r['id'])); db.commit(); db.close(); st.success("Actualizado"); time.sleep(0.5); st.rerun()
                             if c_b2.form_submit_button("ELIMINAR REGISTRO"):
                                 db = get_connection(); db.execute("DELETE FROM consultas WHERE id=?", (r['id'],)); db.commit(); db.close(); st.warning("Eliminado"); time.sleep(0.5); st.rerun()
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
@@ -546,7 +537,7 @@ def bloque_medicos():
                     st.error("❌ Complete los campos obligatorios antes de guardar (Nombre, Cédula, Diagnóstico y Tratamiento).")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 10. EJECUCIÓN NAVEGACIÓN GENERAL ---
+# --- 11. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
     login()
 else:
