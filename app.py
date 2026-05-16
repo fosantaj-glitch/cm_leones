@@ -62,7 +62,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS agendamientos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, medico TEXT, hora TEXT, 
                   paciente TEXT, telefono TEXT)''')
-    # Tabla limpia de historias clínicas vinculada por médico
     c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, 
                   paciente TEXT, motivo_consulta TEXT, diagnostico TEXT, evolucion TEXT)''')
@@ -255,20 +254,28 @@ def bloque_recepcion():
                 st.markdown(f"**Total {med}: ${sub['total'].sum():.2f}**")
         else: st.info("No hay registros en la fecha seleccionada.")
 
-# --- 8. BLOQUE MÉDICOS ---
+# --- 8. BLOQUE MÉDICOS (ACTUALIZADO CON DESPLEGABLE DE PROFESIONALES) ---
 def bloque_medicos():
     st.markdown("## 🥼 INTERFAZ DE HISTORIAS CLÍNICAS")
     
-    # Validación estricta mediante campos de entrada
+    # Extraer dinámicamente los médicos registrados en la Base de Datos
+    conn = get_connection()
+    medicos_registrados = [p[0] for p in conn.execute("SELECT nombre FROM profesionales").fetchall()]
+    conn.close()
+    
+    # Crear listado de opciones agregando la cuenta maestra universal
+    opciones_medicos = ["Seleccione Médico..."] + ["CMLeones"] + medicos_registrados
+    
     c_m1, c_m2 = st.columns(2)
-    doc_usuario = c_m1.text_input("DIGITE SU NOMBRE DE USUARIO MÉDICO")
+    # Cambiado st.text_input por st.selectbox para desplegar listado de nombres
+    doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos)
     doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password")
     
-    if doc_usuario and doc_cedula:
+    if doc_usuario != "Seleccione Médico..." and doc_cedula:
         conn = get_connection()
         es_valido = conn.execute("SELECT nombre FROM profesionales WHERE nombre=? AND cedula=?", (doc_usuario, doc_cedula)).fetchone()
         
-        # Superacceso máster habilitado si se usa la clave universal
+        # Superacceso máster habilitado con la clave universal
         if es_valido or (doc_usuario == "CMLeones" and doc_cedula == "2468"):
             st.success(f"🔓 Validado correctamente: {doc_usuario}")
             st.divider()
