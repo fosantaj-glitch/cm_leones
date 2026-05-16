@@ -79,12 +79,13 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS agendamientos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, medico TEXT, hora TEXT, 
                   paciente TEXT, telefono TEXT)''')
-    # Tabla adaptada para incluir de forma nativa la identificación única del paciente desde la ficha
+    # Tabla estructurada con las nuevas columnas de contacto telefónico y de emergencia
     c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, 
-                  paciente_nombre TEXT, paciente_cedula TEXT, motivo_consulta TEXT, 
-                  signos_vitales TEXT, antecedentes TEXT, examen_fisico TEXT, 
-                  diagnostico TEXT, evolucion TEXT)''')
+                  paciente_nombre TEXT, paciente_cedula TEXT, paciente_telefono TEXT,
+                  contacto_emergencia_nombre TEXT, contacto_emergencia_telefono TEXT,
+                  motivo_consulta TEXT, signos_vitales TEXT, antecedentes TEXT, 
+                  examen_fisico TEXT, diagnostico TEXT, evolucion TEXT)''')
     conn.commit(); conn.close()
 
 init_db()
@@ -193,7 +194,7 @@ def bloque_administracion():
     elif menu == "BASE DE DATOS PACIENTES":
         st.header("🗄️ Base de Datos Pacientes")
         try:
-            df_hist_global = pd.read_sql("SELECT fecha_registro as 'Fecha Registro', paciente_nombre as 'Paciente', paciente_cedula as 'Cédula', medico as 'Médico', diagnostico as 'Diagnóstico CIE-10' FROM historias_clinicas ORDER BY fecha_registro DESC", get_connection())
+            df_hist_global = pd.read_sql("SELECT fecha_registro as 'Fecha Registro', paciente_nombre as 'Paciente', paciente_cedula as 'Cédula', paciente_telefono as 'Teléfono', medico as 'Médico', diagnostico as 'Diagnóstico CIE-10' FROM historias_clinicas ORDER BY fecha_registro DESC", get_connection())
             if not df_hist_global.empty:
                 st.dataframe(df_hist_global, use_container_width=True, hide_index=True)
             else:
@@ -318,7 +319,6 @@ def bloque_medicos():
     st.markdown("<br>", unsafe_allow_html=True)
     st.button("INGRESO", on_click=ejecutar_ingreso_medico, args=(doc_usuario, doc_cedula))
     
-    # Una vez validado con el botón INGRESO, se muestra directamente la Ficha Médica
     if st.session_state.med_acceso_concedido:
         medico_activo = st.session_state.med_nombre_guardado
         st.info(f"👨‍⚕️ Profesional Activo: {medico_activo}")
@@ -331,31 +331,37 @@ def bloque_medicos():
         with st.form("nuevo_registro_clinico", clear_on_submit=False):
             
             st.markdown("<div class='seccion-clinica'>1. IDENTIFICACIÓN EXCLUSIVA DEL PACIENTE</div>", unsafe_allow_html=True)
-            col_id1, col_id2 = st.columns(2)
-            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE (Los datos ingresados aquí van a la base de datos)")
+            col_id1, col_id2, col_id3 = st.columns(3)
+            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE")
             p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE")
+            p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE")
             
-            st.markdown("<div class='seccion-clinica'>2. MOTIVO DE CONSULTA Y ANAMNESIS</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>2. CONTACTO DE EMERGENCIA DEL PACIENTE</div>", unsafe_allow_html=True)
+            col_em1, col_em2 = st.columns(2)
+            p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA")
+            p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA")
+            
+            st.markdown("<div class='seccion-clinica'>3. MOTIVO DE CONSULTA Y ANAMNESIS</div>", unsafe_allow_html=True)
             motivo_act = st.text_input("Motivo de la Consulta Actual")
             
-            st.markdown("<div class='seccion-clinica'>3. SIGNOS VITALES</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>4. SIGNOS VITALES</div>", unsafe_allow_html=True)
             col_sv1, col_sv2, col_sv3, col_sv4 = st.columns(4)
             pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80")
             fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72")
             fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16")
             temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5")
             
-            st.markdown("<div class='seccion-clinica'>4. ANTECEDENTES PATOLÓGICOS</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>5. ANTECEDENTES PATOLÓGICOS</div>", unsafe_allow_html=True)
             ant_personales = st.text_area("Antecedentes Personales (Clínicos, Quirúrgicos, Alergias)", placeholder="Ninguno / Diabetes / Hipertensión...")
             ant_familiares = st.text_area("Antecedentes Familiares", placeholder="Cardiopatías, Cáncer, etc...")
             
-            st.markdown("<div class='seccion-clinica'>5. EXAMEN FÍSICO COMENTADO</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>6. EXAMEN FÍSICO COMENTADO</div>", unsafe_allow_html=True)
             examen_fisico_txt = st.text_area("Descripción del examen físico y exploración del paciente")
             
-            st.markdown("<div class='seccion-clinica'>6. DIAGNÓSTICO PRESUNTIVO O DEFINITIVO (CIE-10)</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>7. DIAGNÓSTICO PRESUNTIVO O DEFINITIVO (CIE-10)</div>", unsafe_allow_html=True)
             diag_act = st.text_area("Impresión Diagnóstica / Códigos CIE-10")
             
-            st.markdown("<div class='seccion-clinica'>7. PLAN DE TRATAMIENTO Y EVOLUCIÓN</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>8. PLAN DE TRATAMIENTO Y EVOLUCIÓN</div>", unsafe_allow_html=True)
             evol_act = st.text_area("Prescripción de medicamentos, indicaciones y plan terapéutico")
             
             st.markdown("<br>", unsafe_allow_html=True)
@@ -366,7 +372,7 @@ def bloque_medicos():
                     antecedentes_compuesto = f"Personales: {ant_personales} \nFamiliares: {ant_familiares}"
                     
                     conn = get_connection()
-                    # CONTROL ANTI-DUPLICADOS LÓGICO: Compara contra el último registro exacto de este paciente
+                    # CONTROL ANTI-DUPLICADOS LÓGICO
                     ultimo_guardado = conn.execute(
                         "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente_cedula=? ORDER BY id DESC LIMIT 1", 
                         (p_cedula_input,)
@@ -379,9 +385,9 @@ def bloque_medicos():
                         f_reg = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         conn.execute(
                             """INSERT INTO historias_clinicas 
-                               (fecha_registro, medico, paciente_nombre, paciente_cedula, motivo_consulta, signos_vitales, antecedentes, examen_fisico, diagnostico, evolucion) 
-                               VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                            (f_reg, medico_activo, p_nombre_input, p_cedula_input, motivo_act, signos_vitales_compuesto, antecedentes_compuesto, examen_fisico_txt, diag_act, evol_act)
+                               (fecha_registro, medico, paciente_nombre, paciente_cedula, paciente_telefono, contacto_emergencia_nombre, contacto_emergencia_telefono, motivo_consulta, signos_vitales, antecedentes, examen_fisico, diagnostico, evolucion) 
+                               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                            (f_reg, medico_activo, p_nombre_input, p_cedula_input, p_telefono_input, p_contacto_nombre, p_contacto_tel, motivo_act, signos_vitales_compuesto, antecedentes_compuesto, examen_fisico_txt, diag_act, evol_act)
                         )
                         conn.commit()
                         conn.close()
