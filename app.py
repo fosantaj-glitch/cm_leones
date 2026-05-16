@@ -16,8 +16,8 @@ st.markdown(
     .block-container { padding-top: 1rem; padding-bottom: 0rem; }
     
     /* Barra Lateral Azul y Oro */
-    [data-testid=\"stSidebar\"] { background-color: #003366 !important; }
-    [data-testid=\"stSidebar\"] * { color: white !important; }
+    [data-testid="stSidebar"] { background-color: #003366 !important; }
+    [data-testid="stSidebar"] * { color: white !important; }
 
     /* Botón Estilo Profesional Leones */
     .stButton>button { 
@@ -81,7 +81,7 @@ def init_db():
                   paciente TEXT, telefono TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS historias_clinicas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_registro TEXT, medico TEXT, 
-                  paciente_nombre TEXT, paciente_cedula TEXT, paciente_telefono TEXT,
+                  paciente_nombre TEXT, patiente_cedula TEXT, paciente_telefono TEXT,
                   contacto_emergencia_nombre TEXT, contacto_emergencia_telefono TEXT,
                   motivo_consulta TEXT, signos_vitales TEXT, antecedentes TEXT, 
                   examen_fisico TEXT, diagnostico TEXT, evolucion TEXT)''')
@@ -133,20 +133,30 @@ def login():
             u_nombre, p_clave = "", ""
         else:
             with contenedor_inputs.container():
-                u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_safe_{b_destino}")
+                # PASO DE SEGURIDAD ABSOLUTO: Checkbox manual para romper el renderizado predictivo del navegador
+                firmar_acceso = st.checkbox("✍️ Habilitar firma manual de acceso personal", key=f"firmar_{b_destino}")
                 
-                # Diseño de control visual: Ojo para mostrar u ocultar la clave de manera controlada
-                col_pass, col_ojo = st.columns([6, 1])
-                ver_clave = col_ojo.checkbox("👁️", key=f"ojo_{b_destino}", help="Mostrar/Ocultar Clave")
-                
-                tipo_input = "default" if ver_clave else "password"
-                p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="off", key=f"pwd_safe_{b_destino}")
+                if not firmar_acceso:
+                    st.caption("Marque la casilla para habilitar los campos vacíos de escritura obligatoria.")
+                    u_nombre, p_clave = "", ""
+                else:
+                    # Los campos se crean en blanco absoluto solo cuando el usuario lo decide conscientemente
+                    u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_safe_{b_destino}")
+                    
+                    col_pass, col_ojo = st.columns([6, 1])
+                    ver_clave = col_ojo.checkbox("👁️", key=f"ojo_{b_destino}", help="Mostrar/Ocultar Clave")
+                    tipo_input = "default" if ver_clave else "password"
+                    
+                    p_clave = col_pass.text_input("CLAVE", value="", type=tipo_input, autocomplete="off", key=f"pwd_safe_{b_destino}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
             if b_destino == " " or not u_nombre or not p_clave:
-                st.error("⚠️ Complete todos los campos personales de acceso manual.")
+                st.error("⚠️ Complete todos los campos personales de acceso manual marcando la casilla de firma.")
             elif u_nombre == "CMLeones" and p_clave == "2468":
+                # PURGA Y VACIADO ANTES DEL REDIRECCIONAMIENTO
+                st.session_state[f"usr_safe_{b_destino}"] = ""
+                st.session_state[f"pwd_safe_{b_destino}"] = ""
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
                 st.session_state.autenticado = True
@@ -158,6 +168,9 @@ def login():
                                    (u_nombre, p_clave, b_destino)).fetchone()
                 conn.close()
                 if res:
+                    # PURGA Y VACIADO ANTES DEL REDIRECCIONAMIENTO
+                    st.session_state[f"usr_safe_{b_destino}"] = ""
+                    st.session_state[f"pwd_safe_{b_destino}"] = ""
                     st.session_state.user_role = res[1]
                     st.session_state.user_name = res[0]
                     st.session_state.autenticado = True
@@ -468,6 +481,8 @@ else:
         st.session_state.user_name = None
         st.session_state.med_acceso_concedido = False
         st.session_state.med_nombre_guardado = ""
+        
+        # Forzar destrucción física del widget al alterar el control numérico de clave
         st.session_state.selector_control += 1
         st.rerun()
 
