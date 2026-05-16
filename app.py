@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime
 import time
 
-# --- 1. CONFIGURACIÓN DE PÁGINA (CAMBIO DE FAVICON POR EL LOGO REAL) ---
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="logo leones.jpg", layout="wide", initial_sidebar_state="collapsed")
 
 # --- 2. DISEÑO VISUAL SOBRIO Y FUSIONADO EN BLANCO ---
@@ -117,10 +117,11 @@ def login():
                     
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 6. BLOQUE ADMINISTRACIÓN ---
+# --- 6. BLOQUE ADMINISTRACIÓN (MENÚ SIEMPRE VISIBLE CON RADIO BUTTONS) ---
 def bloque_administracion():
     st.title("⚙️ ADMINISTRACIÓN GENERAL")
-    menu = st.sidebar.selectbox("MENÚ", ["GESTIÓN DE PERMISOS", "GESTIÓN PROFESIONALES", "BASE DE DATOS PACIENTES", "LIQUIDACIÓN MENSUAL"])
+    # Cambiado st.sidebar.selectbox por st.sidebar.radio para que quede igual al de recepción
+    menu = st.sidebar.radio("MENÚ", ["GESTIÓN DE PERMISOS", "GESTIÓN PROFESIONALES", "BASE DE DATOS PACIENTES", "LIQUIDACIÓN MENSUAL"])
 
     if menu == "GESTIÓN DE PERMISOS":
         st.header("🛂 Control de Permisos")
@@ -165,6 +166,14 @@ def bloque_administracion():
                     if st.form_submit_button("Eliminar"):
                         if del_id != "Seleccione...":
                             db = get_connection(); db.execute("DELETE FROM profesionales WHERE id=?", (del_id,)); db.commit(); db.close(); st.rerun()
+
+    elif menu == "BASE DE DATOS PACIENTES":
+        st.header("🗄️ Base de Datos Pacientes")
+        st.info("Espacio para visualización global de pacientes registrados.")
+
+    elif menu == "LIQUIDACIÓN MENSUAL":
+        st.header("📊 Liquidación Mensual")
+        st.info("Espacio destinado para reportes y cierres financieros.")
 
 # --- 7. BLOQUE RECEPCIÓN ---
 def bloque_recepcion():
