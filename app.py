@@ -105,7 +105,7 @@ if 'med_nombre_guardado' not in st.session_state:
 if 'login_servicio_key' not in st.session_state:
     st.session_state.login_servicio_key = "Seleccione un servicio..."
 
-# --- 5. LOGIN VERTICAL ---
+# --- 5. LOGIN VERTICAL CON DESACOPLAMIENTO DE MEMORIA DEL DOM ---
 def login():
     st.markdown("<br>", unsafe_allow_html=True)
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
@@ -122,31 +122,29 @@ def login():
         servicios_disponibles = ["Seleccione un servicio...", "RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"]
         b_destino = st.selectbox("Elija el servicio al que desea ingresar", servicios_disponibles, key="login_servicio_key")
         
-        # Generamos llaves dinámicas que cambian según el servicio seleccionado.
-        # Esto obliga a Streamlit a destruir el input anterior y renderizar uno nuevo completamente limpio.
-        key_usuario = f"usr_dynamic_{b_destino}"
-        key_clave = f"pwd_dynamic_{b_destino}"
+        # ARQUITECTURA ELITE: Contenedor vacío dinámico independiente para destruir inputs de la RAM visual
+        contenedor_inputs = st.empty()
         
-        # Inicializar los estados de los inputs vacíos si cambian de servicio
-        if key_usuario not in st.session_state:
-            st.session_state[key_usuario] = ""
-        if key_clave not in st.session_state:
-            st.session_state[key_clave] = ""
-
-        u_nombre = st.text_input("USUARIO", autocomplete="off", key=key_usuario)
-        p_clave = st.text_input("CLAVE", type="password", autocomplete="off", key=key_clave)
+        if b_destino == "Seleccione un servicio...":
+            contenedor_inputs.info("Por favor, seleccione un servicio arriba para habilitar los campos de acceso individual.")
+            u_nombre, p_clave = "", ""
+        else:
+            with contenedor_inputs.container():
+                # Inyección de inputs con hashes de clave temporal única basada en marca de tiempo
+                marca_tiempo = int(time.time() // 5) 
+                u_nombre = st.text_input("USUARIO", value="", autocomplete="off", key=f"usr_elite_{b_destino}_{marca_tiempo}")
+                p_clave = st.text_input("CLAVE", value="", type="password", autocomplete="off", key=f"pwd_elite_{b_destino}_{marca_tiempo}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
-            if b_destino == "Seleccione un servicio...":
-                st.error("⚠️ Por favor, seleccione un servicio válido de la lista.")
+            if b_destino == "Seleccione un servicio..." or not u_nombre or not p_clave:
+                st.error("⚠️ Complete todos los campos personales de acceso manual.")
             elif u_nombre == "CMLeones" and p_clave == "2468":
-                # BORRADO INMEDIATO POST-INGRESO: Limpiamos los campos antes del redireccionamiento
-                st.session_state[key_usuario] = ""
-                st.session_state[key_clave] = ""
+                # Limpieza absoluta de variables antes de mutar de hoja
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
                 st.session_state.autenticado = True
+                contenedor_inputs.empty()
                 st.rerun()
             else:
                 conn = get_connection()
@@ -154,12 +152,10 @@ def login():
                                    (u_nombre, p_clave, b_destino)).fetchone()
                 conn.close()
                 if res:
-                    # BORRADO INMEDIATO POST-INGRESO
-                    st.session_state[key_usuario] = ""
-                    st.session_state[key_clave] = ""
                     st.session_state.user_role = res[1]
                     st.session_state.user_name = res[0]
                     st.session_state.autenticado = True
+                    contenedor_inputs.empty()
                     st.rerun()
                 else:
                     st.error("⚠️ Credenciales incorrectas para este servicio.")
@@ -316,8 +312,6 @@ def ejecutar_ingreso_medico(usr, ced):
         if es_valido or (usr == "CMLeones" and ced == "2468"):
             st.session_state.med_acceso_concedido = True
             st.session_state.med_nombre_guardado = usr
-            
-            # Limpieza absoluta de las variables vinculadas a las llaves de validación médica
             st.session_state["val_usuario"] = "Seleccione Médico..."
             st.session_state["val_cedula"] = ""
         else:
@@ -338,8 +332,8 @@ def bloque_medicos():
     c_m1, c_m2 = st.columns(2)
     doc_usuario = c_m1.selectbox("SELECCIONE SU NOMBRE DE PROFESIONAL MÉDICO", opciones_medicos, key="val_usuario")
     
-    # Campo protegido anti-autollenado dinámico del módulo médico
-    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="off", key="val_cedula")
+    m_tiempo = int(time.time() // 5)
+    doc_cedula = c_m2.text_input("DIGITE SU NÚMERO DE CÉDULA MÉDICA", type="password", autocomplete="off", key=f"med_pass_{m_tiempo}")
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.button("INGRESO", on_click=ejecutar_ingreso_medico, args=(doc_usuario, doc_cedula))
@@ -426,7 +420,7 @@ def bloque_medicos():
                     
                     conn = get_connection()
                     ultimo_guardado = conn.execute(
-                        "SELECT motivo_consulta, diagnostico, evolución FROM historias_clinicas WHERE paciente_cedula=? ORDER BY id DESC LIMIT 1", 
+                        "SELECT motivo_consulta, diagnostico, evolucion FROM historias_clinicas WHERE paciente_cedula=? ORDER BY id DESC LIMIT 1", 
                         (p_cedula_input,)
                     ).fetchone()
                     
