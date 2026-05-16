@@ -129,7 +129,6 @@ def login():
             key="selector_servicio_principal"
         )
         
-        # Uso correcto de un contenedor dinámico para asegurar que la pantalla se limpie por completo
         contenedor_inputs = st.empty()
         
         if b_destino == " ":
@@ -147,9 +146,9 @@ def login():
                     """, unsafe_allow_html=True
                 )
                 
-                # Tus campos reales estables
                 u_nombre = st.text_input("USUARIO", value="", autocomplete="new-password", key="usr_real_input")
                 
+                # CORRECCIÓN ELITE: Las columnas se crean estrictamente aquí adentro para no dejar iconos huérfanos si b_destino == " "
                 col_pass, col_ojo = st.columns([6, 1])
                 ver_clave = col_ojo.checkbox("👁️", key="ojo_login", help="Mostrar/Ocultar Clave")
                 tipo_input = "default" if ver_clave else "password"
@@ -401,24 +400,24 @@ def bloque_medicos():
             
             st.markdown("<div class='seccion-clinica'>1. IDENTIFICACIÓN EXCLUSIVA DEL PACIENTE</div>", unsafe_allow_html=True)
             col_id1, col_id2, col_id3 = st.columns(3)
-            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE")
-            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula)
-            p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE")
+            p_nombre_input = col_id1.text_input("NOMBRE COMPLETO DEL PACIENTE", autocomplete="off")
+            p_cedula_input = col_id2.text_input("NÚMERO DE CÉDULA DEL PACIENTE", value=buscar_cedula, autocomplete="off")
+            p_telefono_input = col_id3.text_input("NÚMERO TELEFÓNICO DEL PACIENTE", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>2. CONTACTO DE EMERGENCIA DEL PACIENTE</div>", unsafe_allow_html=True)
             col_em1, col_em2 = st.columns(2)
-            p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA")
-            p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA")
+            p_contacto_nombre = col_em1.text_input("NOMBRE DE CONTACTO DE EMERGENCIA", autocomplete="off")
+            p_contacto_tel = col_em2.text_input("NÚMERO TELEFÓNICO DE EMERGENCIA", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>3. MOTIVO DE CONSULTA Y ANAMNESIS</div>", unsafe_allow_html=True)
-            motivo_act = st.text_input("Motivo de la Consulta Actual")
+            motivo_act = st.text_input("Motivo de la Consulta Actual", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>4. SIGNOS VITALES</div>", unsafe_allow_html=True)
             col_sv1, col_sv2, col_sv3, col_sv4 = st.columns(4)
-            pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80")
-            fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72")
-            fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16")
-            temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5")
+            pa = col_sv1.text_input("P. Arterial (mmHg)", placeholder="120/80", autocomplete="off")
+            fc = col_sv2.text_input("Frec. Cardíaca (lpm)", placeholder="72", autocomplete="off")
+            fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16", autocomplete="off")
+            temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5", autocomplete="off")
             
             st.markdown("<div class='seccion-clinica'>5. ANTECEDENTES PATOLÓGICOS</div>", unsafe_allow_html=True)
             ant_personales = st.text_area("Antecedentes Personales (Clínicos, Quirúrgicos, Alergias)", placeholder="Ninguno / Diabetes / Hipertensión...")
@@ -466,7 +465,7 @@ def bloque_medicos():
                     st.error("❌ Complete los campos obligatorios antes de guardar (Nombre, Cédula, Diagnóstico y Tratamiento).")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 11. EJECUCIÓN NAVEGACIÓN GENERAL ---
+# --- 10. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
     login()
 else:
