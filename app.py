@@ -74,11 +74,14 @@ init_db()
 # --- 4. GESTIÓN DE ESTADO DE SESIÓN ---
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
+if 'user_role' not in st.session_state:
     st.session_state.user_role = None
+if 'user_name' not in st.session_state:
     st.session_state.user_name = None
 
 # --- 5. LOGIN VERTICAL EN COLUMNA ESTRECHA CONTROLADA ---
 def login():
+    st.markdown("<br>", unsafe_allow_html=True)
     col_izq, col_centro, col_der = st.columns([1.2, 1, 1.2])
     
     with col_centro:
@@ -93,14 +96,13 @@ def login():
         st.markdown("<p class='subtitle' style='text-align: center;'>SISTEMA MÉDICO INTEGRAL</p>", unsafe_allow_html=True)
         st.markdown("<hr style='margin-top:0px; margin-bottom:15px; border-top: 1px solid #dee2e6;'>", unsafe_allow_html=True)
         
-        # Inputs de Login
         b_destino = st.selectbox("Elija el bloque al que desea ingresar", ["RECEPCION", "ADMINISTRACION", "MEDICOS", "CONTABILIDAD"])
         u_nombre = st.text_input("USUARIO")
         p_clave = st.text_input("CLAVE", type="password")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("INGRESAR AL SISTEMA"):
-            # CLAVE MAESTRA UNIVERSAL TEMPORAL
+            # CLAVE MAESTRA UNIVERSAL TEMPORAL (Acceso prioritario directo)
             if u_nombre == "CMLeones" and p_clave == "2468":
                 st.session_state.user_role = b_destino
                 st.session_state.user_name = "Administrador Maestro"
@@ -340,7 +342,7 @@ def bloque_medicos():
         else:
             st.error("❌ Credenciales de validación médica incorrectas.")
 
-# --- 9. EJECUCIÓN NAVEGACIÓN GENERAL ---
+# --- 9. CONFIGURACIÓN DEL SISTEMA DE NAVEGACIÓN GENERAL (FLUJO DIRECTO) ---
 if not st.session_state.autenticado:
     login()
 else:
@@ -355,6 +357,8 @@ else:
         st.rerun()
 
     st.sidebar.divider()
+    
+    # Renderizado directo de bloques según el rol asignado en el login
     if st.session_state.user_role == "ADMINISTRACION":
         bloque_administracion()
     elif st.session_state.user_role == "RECEPCION":
