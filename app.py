@@ -6,13 +6,16 @@ from datetime import datetime
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="logo leones.jpg", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. DISEÑO VISUAL SOBRIO Y FUSIONADO EN BLANCO ---
+# --- 2. DISEÑO VISUAL SOBRIO, FUSIONADO EN BLANCO Y MÁXIMA PROTECCIÓN ---
 st.markdown(
     """
     <style>
     /* Forzar fondo blanco absoluto en toda la aplicación para fusionar el logo */
     .stApp { background-color: #ffffff; }
     .block-container { padding-top: 1rem; padding-bottom: 0rem; }
+    
+    /* SEGURIDAD VISUAL: Oculta por completo la barra superior derecha de GitHub / Streamlit (Share, Star, Edit, etc.) */
+    .stAppToolbar { display: none !important; }
     
     /* Barra Lateral Azul y Oro */
     [data-testid="stSidebar"] { background-color: #003366 !important; }
@@ -208,21 +211,17 @@ def bloque_administracion():
                         if del_id != "Seleccione...":
                             db = get_connection(); db.execute("DELETE FROM profesionales WHERE id=?", (del_id,)); db.commit(); db.close(); st.rerun()
 
-    # --- FUSIÓN ABSOLUTA: BASE DE DATOS PACIENTES + AUDITORÍA EN UN SOLO LUGAR ---
     elif menu == "BASE DE DATOS PACIENTES":
         st.header("🗄️ Fichas e Historias Clínicas de Pacientes")
         st.markdown("---")
         
         conn = get_connection()
-        # Se listan incondicionalmente todos los profesionales registrados en el sistema
         medicos_db = [r[0] for r in conn.execute("SELECT nombre FROM profesionales ORDER BY nombre").fetchall()]
         opciones_medicos_auditoria = ["CMLeones"] + medicos_db
         
-        # El campo para desplegar los médicos siempre aparece primero
         medico_sel = st.selectbox("🩺 Seleccione el Médico Especialista para ver sus pacientes:", ["Seleccione Médico..."] + opciones_medicos_auditoria)
         
         if medico_sel != "Seleccione Médico...":
-            # Buscamos qué pacientes han sido atendidos por el médico elegido
             pacientes_db = [r[0] for r in conn.execute("SELECT DISTINCT paciente_nombre FROM historias_clinicas WHERE medico=? ORDER BY paciente_nombre", (medico_sel,)).fetchall()]
             
             if not pacientes_db:
@@ -231,7 +230,6 @@ def bloque_administracion():
                 paciente_sel = st.selectbox("👤 Seleccione el Paciente:", ["Seleccione Paciente..."] + pacientes_db)
                 
                 if paciente_sel != "Seleccione Paciente...":
-                    # Cargamos el listado de fechas de atención del paciente elegido
                     fechas_db = [r[0] for r in conn.execute("SELECT fecha_registro FROM historias_clinicas WHERE medico=? AND paciente_nombre=? ORDER BY fecha_registro DESC", (medico_sel, paciente_sel)).fetchall()]
                     
                     fechas_sel = st.multiselect("📅 Seleccione la o las Fechas de Atención a consultar:", fechas_db)
@@ -525,7 +523,7 @@ def bloque_medicos():
                     st.error("❌ Complete los campos obligatorios antes de guardar (Nombre, Cédula, Diagnóstico y Tratamiento).")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 11. EJECUCIÓN NAVEGACIÓN GENERAL ---
+# --- 10. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
     login()
 else:
