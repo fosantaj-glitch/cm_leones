@@ -44,7 +44,7 @@ st.markdown(
     .stTextInput>div, .stSelectbox>div { margin-bottom: -15px; }
     .total-box { background-color: #f1f3f5; color: #003366; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 1.1em; font-weight: bold; margin-top: 10px; }
     
-    /* Contenedor estético para la Hoja Modelo de Historia Clínica */
+    /* Contenedor estético para la Hoja Modelo de Historia Clínica y Contabilidad */
     .hoja-clinica {
         background-color: #f8f9fa;
         padding: 25px;
@@ -87,6 +87,10 @@ def init_db():
                   contacto_emergencia_nombre TEXT, contacto_emergencia_telefono TEXT,
                   motivo_consulta TEXT, signos_vitales TEXT, antecedentes TEXT, 
                   examen_fisico TEXT, diagnostico TEXT, evolucion TEXT)''')
+    
+    # NUEVA TABLA: Plan de Cuentas Contable (Estructura MÓNICA)
+    c.execute('''CREATE TABLE IF NOT EXISTS plan_cuentas 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE, nombre TEXT, tipo TEXT)''')
     conn.commit(); conn.close()
 
 init_db()
@@ -149,13 +153,13 @@ def login():
                 st.rerun()
             else:
                 conn = get_connection()
-                res = conn.execute("SELECT nombre, bloque FROM usuarios WHERE nombre=? AND cedula=? AND bloque=?", 
+                res = conn.execute("SELECT nombre, cedula, bloque FROM usuarios WHERE nombre=? AND cedula=? AND bloque=?", 
                                    (u_nombre, p_clave, b_destino)).fetchone()
                 conn.close()
                 if res:
                     st.session_state.autenticado = True
                     st.session_state.user_name = res[0]
-                    st.session_state.user_role = res[1]
+                    st.session_state.user_role = res[2]
                     st.rerun()
                 else:
                     st.error("⚠️ Credenciales incorrectas para este servicio.")
@@ -283,13 +287,13 @@ def bloque_administracion():
                                 texto_completo_documento += "-"*50 + "\n\n"
                         
                         st.markdown("### 🖨️ Acciones de Reporte")
-                        c_act1, c_act2 = st.columns(2)
+                        col_print, col_download = st.columns(2)
                         
-                        if c_act1.button("🖨️ IMPRIMIR SELECCIONADAS"):
+                        if col_print.button("🖨️ IMPRIMIR SELECCIONADAS"):
                             st.markdown("<script>window.print();</script>", unsafe_allow_html=True)
                         
                         nombre_archivo_salida = f"Ficha_{paciente_sel.replace(' ', '_')}.txt"
-                        c_act2.download_button(
+                        col_download.download_button(
                             label="💾 DESCARGAR SELECCIONADAS (.TXT)",
                             data=texto_completo_documento,
                             file_name=nombre_archivo_salida,
@@ -523,7 +527,120 @@ def bloque_medicos():
                     st.error("❌ Complete los campos obligatorios antes de guardar (Nombre, Cédula, Diagnóstico y Tratamiento).")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 10. EJECUCIÓN NAVEGACIÓN GENERAL ---
+# --- 10. NUEVO: BLOQUE CONTABILIDAD (ESTILO MÓNICA) ---
+def bloque_contabilidad():
+    st.title("📊 SISTEMA CONTABLE INTEGRADO (MÓNICA v1.0)")
+    
+    opcion_contable = st.sidebar.radio(
+        "MÓDULO CONTABLE", 
+        ["CUADRE DE CAJA DIARIA", "PLAN DE CUENTAS", "LIBRO DIARIO", "LIBRO MAYOR", "RESUMEN DE ATENCIONES"]
+    )
+    
+    conn = get_connection()
+    
+    if opcion_contable == "CUADRE DE CAJA DIARIA":
+        st.header("💰 Control de Arqueo y Cuadre de Caja")
+        col_f1, col_f2 = st.columns(2)
+        f_inicio = col_f1.date_input("Fecha Inicio Consulta", datetime.today())
+        f_fin = col_f2.date_input("Fecha Fin Consulta", datetime.today())
+        
+        df_caja = pd.read_sql(
+            f"SELECT fecha, forma_pago, medico, paciente, total FROM consultas WHERE fecha BETWEEN '{f_inicio}' AND '{f_fin}'", 
+            conn
+        )
+        
+        if not df_caja.empty:
+            st.markdown(f"#### Movimientos registrados desde {f_inicio} hasta {f_fin}")
+            st.dataframe(df_caja, use_container_width=True, hide_index=True)
+            
+            total_recaudado = df_caja['total'].sum()
+            st.markdown(f"<div class='total-box'>💵 TOTAL GENERAL RECAUDADO EN CAJA: ${total_recaudado:.2f}</div>", unsafe_allow_html=True)
+            
+            st.markdown("##### Resumen por Forma de Pago")
+            df_resumen_pago = df_caja.groupby('forma_pago')['total'].sum().reset_index()
+            st.table(df_resumen_pago.rename(columns={'forma_pago': 'Forma de Pago', 'total': 'Total ($)'}))
+        else:
+            st.info("No se registran movimientos de ingresos en el rango de fechas seleccionado.")
+            
+    elif opcion_contable == "PLAN DE CUENTAS":
+        st.header("🗂️ Configuración del Plan de Cuentas Contables")
+        
+        with st.form("crear_cuenta_contable", clear_on_submit=True):
+            st.write("**Añadir Cuenta Contable al Catálogo (Principios de Contabilidad)**")
+            c1, c2, c3 = st.columns(3)
+            cod_c = c1.text_input("Código de la Cuenta (Ej: 1.1.01)", autocomplete="off")
+            nom_c = c2.text_input("Nombre de la Cuenta (Ej: Caja General)", autocomplete="off")
+            tipo_c = c3.selectbox("Tipo de Cuenta", ["Activo", "Pasivo", "Patrimonio", "Ingreso", "Gasto"])
+            
+            if st.form_submit_button("Registrar Cuenta"):
+                if cod_c and nom_c:
+                    try:
+                        conn.execute("INSERT INTO plan_cuentas (codigo, nombre, tipo) VALUES (?,?,?)", (cod_c, nom_c, tipo_c))
+                        conn.commit()
+                        st.success("✅ Cuenta contable añadida exitosamente.")
+                    except:
+                        st.error("❌ El código de cuenta ya existe en los registros.")
+                        
+        df_cuentas = pd.read_sql("SELECT codigo as 'Código', nombre as 'Cuenta Contable', tipo as 'Naturaleza' FROM plan_cuentas ORDER BY codigo", conn)
+        st.markdown("### Catálogo de Cuentas Vigente")
+        st.dataframe(df_cuentas, use_container_width=True, hide_index=True)
+        
+    elif opcion_contable == "LIBRO DIARIO":
+        st.header("📖 Libro Diario de Asientos")
+        f_diario = st.date_input("Seleccione Fecha de Operación", datetime.today())
+        
+        df_diario = pd.read_sql(
+            f"SELECT id as 'N° Asiento', fecha as 'Fecha', paciente as 'Concepto/Paciente', 'Ingreso por Consulta' as 'Detalle', total as 'Debe (Ingreso)', 0.0 as 'Haber' FROM consultas WHERE fecha='{f_diario}'", 
+            conn
+        )
+        
+        if not df_diario.empty:
+            st.dataframe(df_diario, use_container_width=True, hide_index=True)
+            st.markdown(f"**Total Débitos del día:** ${df_diario['Debe (Ingreso)'].sum():.2f} | **Total Créditos del día:** $0.00")
+        else:
+            st.info("No se registran asientos de diario automáticos para la fecha elegida.")
+            
+    elif opcion_contable == "LIBRO MAYOR":
+        st.header("🗄️ Libro Mayor Auxiliar Mensual")
+        mes_sel = st.selectbox("Seleccione Mes de Ejercicio Contable", ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"])
+        anio_sel = st.selectbox("Seleccione Año de Ejercicio Contable", ["2026", "2025", "2027"])
+        
+        df_mayor = pd.read_sql(
+            f"SELECT fecha, medico, paciente, total FROM consultas WHERE fecha LIKE '{anio_sel}-{mes_sel}-%'", 
+            conn
+        )
+        
+        if not df_mayor.empty:
+            st.markdown(f"### Movimientos Mayorizados para el periodo {mes_sel}/{anio_sel}")
+            st.dataframe(df_mayor.rename(columns={'fecha': 'Fecha', 'medico': 'Referencia', 'paciente': 'Detalle', 'total': 'Saldo Debito ($)'}), use_container_width=True, hide_index=True)
+            st.markdown(f"<div class='total-box'>💰 Saldo Acumulado en el Periodo: ${df_mayor['total'].sum():.2f}</div>", unsafe_allow_html=True)
+        else:
+            st.info("No se registran movimientos mayorizados en el periodo seleccionado.")
+            
+    elif opcion_contable == "RESUMEN DE ATENCIONES":
+        st.header("📈 Resúmenes Estadísticos Contables y de Atenciones")
+        
+        st.markdown("### Resumen de Facturación y Atenciones por Médico")
+        df_medicos_stats = pd.read_sql(
+            "SELECT medico as 'Médico Profesional', COUNT(*) as 'Atenciones Totales', SUM(v_consulta) as 'Recaudado Consultas ($)', SUM(total) as 'Facturación Total ($)' FROM consultas GROUP BY medico", 
+            conn
+        )
+        if not df_medicos_stats.empty:
+            st.dataframe(df_medicos_stats, use_container_width=True, hide_index=True)
+        else:
+            st.caption("No existen atenciones registradas.")
+            
+        st.markdown("### Resumen de Atenciones por Tipo de Pago")
+        df_pago_stats = pd.read_sql(
+            "SELECT forma_pago as 'Forma de Pago', COUNT(*) as 'Transacciones', SUM(total) as 'Monto Recaudado ($)' FROM consultas GROUP BY forma_pago", 
+            conn
+        )
+        if not df_pago_stats.empty:
+            st.dataframe(df_pago_stats, use_container_width=True, hide_index=True)
+            
+    conn.close()
+
+# --- 11. EJECUCIÓN NAVEGACIÓN GENERAL ---
 if not st.session_state.autenticado:
     login()
 else:
@@ -557,5 +674,4 @@ else:
     elif st.session_state.user_role == "MEDICOS":
         bloque_medicos()
     elif st.session_state.user_role == "CONTABILIDAD":
-        st.title("💰 BLOQUE CONTABILIDAD")
-        st.info("Bloque en construcción.")
+        bloque_contabilidad()
