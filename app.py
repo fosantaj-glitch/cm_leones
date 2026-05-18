@@ -527,9 +527,9 @@ def bloque_medicos():
                     st.error("❌ Complete los campos obligatorios antes de guardar (Nombre, Cédula, Diagnóstico y Tratamiento).")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 10. NUEVO: BLOQUE CONTABILIDAD (ESTILO MÓNICA) ---
+# --- 10. BLOQUE CONTABILIDAD ---
 def bloque_contabilidad():
-    st.title("📊 SISTEMA CONTABLE INTEGRADO (MÓNICA v1.0)")
+    st.title("📊 SISTEMA CONTABLE INTEGRADO")
     
     opcion_contable = st.sidebar.radio(
         "MÓDULO CONTABLE", 
