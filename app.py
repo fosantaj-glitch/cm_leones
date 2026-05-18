@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import datetime
+import time
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Club de Leones Cumbayá-Ilaló", page_icon="logo leones.jpg", layout="wide", initial_sidebar_state="collapsed")
@@ -618,16 +619,50 @@ def bloque_contabilidad():
     elif opcion_contable == "RESUMEN DE ATENCIONES":
         st.header("📈 Resúmenes Estadísticos Contables y de Atenciones")
         
+        # --- NUEVA SECCIÓN SOLICITADA: FILTRO DINÁMICO POR FECHA Y MÉDICO ---
         st.markdown("### Resumen de Facturación y Atenciones por Médico")
-        df_medicos_stats = pd.read_sql(
-            "SELECT medico as 'Médico Profesional', COUNT(*) as 'Atenciones Totales', SUM(v_consulta) as 'Recaudado Consultas ($)', SUM(total) as 'Facturación Total ($)' FROM consultas GROUP BY medico", 
+        
+        # Obtener lista de médicos registrados dinámicamente desde la BD
+        medicos_db = [r[0] for r in conn.execute("SELECT nombre FROM profesionales ORDER BY nombre").fetchall()]
+        opciones_medicos_filtro = ["CMLeones"] + medicos_db
+        
+        # Estructura de campos de filtro lado a lado
+        col_filtro_f1, col_filtro_f2, col_filtro_med = st.columns([1, 1, 1.5])
+        f_desde = col_filtro_f1.date_input("Fecha Desde:", datetime.today(), key="filtro_fecha_desde")
+        f_hasta = col_filtro_f2.date_input("Fecha Hasta:", datetime.today(), key="filtro_fecha_hasta")
+        medico_seleccionado = col_med_filtro = col_filtro_med.selectbox("Seleccione el Médico Profesional:", opciones_medicos_filtro, key="filtro_medico_atenciones")
+        
+        # Ejecutar la consulta cruzando rango de fechas y médico exacto
+        df_atenciones_filtrado = pd.read_sql(
+            f"""SELECT fecha, total FROM consultas 
+                WHERE medico = '{medico_seleccionado}' 
+                AND fecha BETWEEN '{f_desde}' AND '{f_hasta}'
+                ORDER BY fecha ASC""", 
             conn
         )
-        if not df_medicos_stats.empty:
-            st.dataframe(df_medicos_stats, use_container_width=True, hide_index=True)
-        else:
-            st.caption("No existen atenciones registradas.")
+        
+        if not df_atenciones_filtrado.empty:
+            # Crear columna numérica secuencial empezando desde 1
+            df_atenciones_filtrado.insert(0, 'Número', range(1, len(df_atenciones_filtrado) + 1))
             
+            # Renombrar columnas según los requerimientos solicitados
+            df_atenciones_filtrado = df_atenciones_filtrado.rename(columns={
+                'fecha': 'Fecha',
+                'total': 'Valor Cobrado ($)'
+            })
+            
+            st.markdown(f"**Reporte de atenciones para {medico_seleccionado} (Desde: {f_desde} | Hasta: {f_hasta})**")
+            st.dataframe(df_atenciones_filtrado, use_container_width=True, hide_index=True)
+            
+            # Mostrar una sumatoria total como apoyo contable del rango
+            suma_cobrada = df_atenciones_filtrado['Valor Cobrado ($)'].sum()
+            st.markdown(f"<div class='total-box'>💰 TOTAL COBRADO POR EL MÉDICO EN ESTE RANGO: ${suma_cobrada:.2f}</div>", unsafe_allow_html=True)
+        else:
+            st.info(f"No se encontraron registros de atenciones para el médico '{medico_seleccionado}' en el rango de fechas seleccionado.")
+            
+        st.markdown("<br><hr>", unsafe_allow_html=True)
+        
+        # Resumen por tipo de pago (Mantenido abajo intacto)
         st.markdown("### Resumen de Atenciones por Tipo de Pago")
         df_pago_stats = pd.read_sql(
             "SELECT forma_pago as 'Forma de Pago', COUNT(*) as 'Transacciones', SUM(total) as 'Monto Recaudado ($)' FROM consultas GROUP BY forma_pago", 
