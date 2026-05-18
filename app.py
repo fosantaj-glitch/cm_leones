@@ -87,8 +87,6 @@ def init_db():
                   contacto_emergencia_nombre TEXT, contacto_emergencia_telefono TEXT,
                   motivo_consulta TEXT, signos_vitales TEXT, antecedentes TEXT, 
                   examen_fisico TEXT, diagnostico TEXT, evolucion TEXT)''')
-    
-    # NUEVA TABLA: Plan de Cuentas Contable (Estructura MÓNICA)
     c.execute('''CREATE TABLE IF NOT EXISTS plan_cuentas 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT UNIQUE, nombre TEXT, tipo TEXT)''')
     conn.commit(); conn.close()
@@ -481,7 +479,7 @@ def bloque_medicos():
             fr = col_sv3.text_input("Frec. Respiratoria (rpm)", placeholder="16", autocomplete="off")
             temp = col_sv4.text_input("Temperatura (°C)", placeholder="36.5", autocomplete="off")
             
-            st.markdown("<div class='seccion-clinica'>5. ANTECEDENTES PATOLÓGICOS</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seccion-clinica'>5. ANANTECEDENTES PATOLÓGICOS</div>", unsafe_allow_html=True)
             ant_personales = st.text_area("Antecedentes Personales (Clínicos, Quirúrgicos, Alergias)", placeholder="Ninguno / Diabetes / Hipertensión...")
             ant_familiares = st.text_area("Antecedentes Familiares", placeholder="Cardiopatías, Cáncer, etc...")
             
